@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+
+import argparse
+from pipeline.valhalla_pipeline import ValhallaDataPipeline
+
+
+def read_args() -> object:
+    parser = argparse.ArgumentParser(description="SwayRider Valhalla data builder")
+    parser.add_argument(
+            "--config",
+            default="config/config.yml",
+            help="Path to the config file")
+    parser.add_argument(
+            "--clean",
+            action="store_true",
+            help="Clean this pipeline's own temp and result data before running")
+    parser.add_argument(
+            "--clean-all",
+            action="store_true",
+            help="Clean all pipeline directories before running")
+    parser.add_argument(
+            "--tag",
+            default="",
+            help="Version tag (default: current date YYYY-MM-DD)")
+
+    args = parser.parse_args()
+    return args
+
+
+def main():
+    args = read_args()
+    pl = ValhallaDataPipeline(args)
+
+    if not pl.initialize():
+        print("Failed to initialize Valhalla data pipeline")
+        return
+
+    if not pl.run():
+        print("Failed to run Valhalla data pipeline")
+        return
+
+    print("Valhalla data pipeline completed successfully")
+
+
+if __name__ == "__main__":
+    main()

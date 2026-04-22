@@ -1,0 +1,1043 @@
+# Parallelisation
+max_workers: 6
+#
+# source data paths
+source_paths:
+  config: ./config
+  border_polygons: ./gis/export/borders
+  overlap_polygons: ./gis/export/overlap
+
+# build paths
+build_paths:
+  download_dir: /Volumes/T7 OSX/Swayrider/pipeline/download
+  temp_dir: /Volumes/T7 OSX/Swayrider/pipeline/tmp
+  tools_dir: /Volumes/T7 OSX/Swayrider/pipeline/tools
+  result_dir: /Volumes/T7 OSX/Swayrider/pipeline/result
+
+# Download locations for public data
+download_urls:
+  osm: "https://download.geofabrik.de/"
+  srtm: "s3://elevation-tiles-prod/skadi/"
+  natural-earth: "https://naturalearth.s3.amazonaws.com/"
+  osm-land-polygons: "https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip"
+
+output:
+  geodata_dir: "/Volumes/T7 OSX/swayrider/geodata"
+
+# Valhalla setup details
+valhalla:
+  repo_base: https://github.com/valhalla
+  repos:
+    - valhalla:latest:
+        git-submodule-update: true
+        cmake-build: true
+        cmake-opts:
+          - -DENABLE_PYTHON_BINDINGS=OFF
+          - -DENABLE_SERVICES=OFF
+          - -DENABLE_BENCHMARKS=OFF
+          - -DENABLE_TESTS=OFF
+          - -DCMAKE_CXX_FLAGS="-Wno-error=format-truncation"
+          - -DCMAKE_POLICY_DEFAULT_CMP0144=OLD
+          - -DSQLite3_INCLUDE_DIR=/opt/homebrew/opt/sqlite3/include
+          - -DSQLite3_LIBRARY=/opt/homebrew/opt/sqlite3/lib/libsqlite3.dylib
+          - -DSQLITE_ENABLE_LOAD_EXTENSION=ON
+          - -DSQLITE_ROOT_DIR=/opt/homebrew/opt/sqlite3
+          - -DProtobuf_ROOT=/opt/homebrew/Cellar/protobuf/33.4_1
+          - -DProtobuf_INCLUDE_DIR=/opt/homebrew/Cellar/protobuf/33.4_1/include
+          - -DProtobuf_LIBRARY=/opt/homebrew/Cellar/protobuf/33.4_1/lib/libprotobuf.dylib
+          - -DBOOST_ROOT=/opt/homebrew/opt/boost
+          - -DABSL_ROOT=/opt/homebrew/opt/abseil
+        make-build: true
+        make-opts:
+          - all
+          - -j4
+
+# Definition of the pelias setup we will do
+pelias:
+  repo_base: https://github.com/pelias
+  repos:
+    - schema:latest:
+        npm-intstall: true
+    - whosonfirst:latest:
+        npm-install: true
+    - geonames:latest:
+        npm-install: true
+    - openaddresses:latest:
+        npm-install: true
+    - openstreetmap:latest:
+        npm-install: true
+    - polylines:latest:
+        npm-install: true
+    - csv:latest:
+        npm-install: true
+    - transit:v1.0.0:
+        npm-install: true
+  config: pelias-load.json
+  config_prod: pelias-prod.json
+  placeholder_url: https://data.geocode.earth/placeholder/2021-08-01/store.sqlite3.gz
+  es_local_port: 39200
+  es_host_prod: sw-dev-elasticsearch
+  es_port_prod: 9200
+  snapshot_repo_path: /usr/share/elasticsearch/snapshots
+  snapshot_repo_name: pelias_repo
+  elastic:
+    version: 7.17.28
+    api_version: 7.x
+    host: localhost
+    port: 39200
+
+# definition of extra tools to build
+tippecanoe:
+  repo_base: https://github.com/felt
+  repos:
+    - tippecanoe:latest:
+        make-build: true
+
+# GDAL
+osgeo:
+  repo_base: https://github.com/OSGeo
+  repos:
+    - gdal:latest:
+        cmake-build: true
+        cmake-compile: true
+        cmake-opts:
+          - -DCMAKE_PREFIX_PATH=/opt/homebrew
+          - -DGDAL_USE_AVIF=OFF
+          - -DGDAL_ENABLE_DRIVER_AVIF=OFF
+
+# Natural Eaurth files
+natural_earth:
+  - 10m_physical/ne_10m_land.zip
+  - 10m_physical/ne_10m_ocean.zip
+  - 10m_cultural/ne_10m_admin_0_countries.zip
+  - 10m_cultural/ne_10m_urban_areas.zip
+  - 10m_cultural/ne_10m_roads.zip
+
+# Full size of the known region
+region_size:
+  min_lat: 20
+  max_lat: 90
+  min_lon: -40
+  max_lon: 50
+
+# Size of a tile
+tile_size: 10
+
+# Definitions of the regions we need to build the tileserver data
+tile_regions:
+  - europe
+
+# Definitions of the regions we need to build
+#
+# OSM Interface:
+#   https://download.geofabrik.de/
+#
+# WOS interface for determining country codes:
+#   https://geocode.earth/data/whosonfirst#AD
+#
+# OpenAddress interface:
+#   https://github.com/openaddresses/openaddresses/tree/master/data
+regions:
+  - baltics-russia:
+      core:
+        osm:
+          - europe/belarus
+          - europe/estonia
+          - europe/georgia
+          - europe/latvia
+          - europe/lithuania
+          - russia/central-fed-district
+          - russia/north-caucasus-fed-district
+          - russia/northwestern-fed-district
+          - russia/south-fed-district
+          - russia/volga-fed-district
+        wof:
+          - by
+          - ee
+          - ge
+          - lv
+          - lt
+          - ru
+        openaddresses:
+          - by/countrywide.csv
+          - ee/countrywide.csv
+          - lv/countrywide.csv
+          - lt/countrywide.csv
+          - ru/mow/statewide.csv
+          - ru/vvg/statewide.csv
+      overlap:
+        extract:
+          - overlap_baltics-russia_central-europe.poly
+          - overlap_baltics-russia_scandinavia.poly
+          - overlap_baltics-russia_south-eastern-europe.poly
+        osm:
+          - europe/bulgaria
+          - europe/denmark
+          - europe/finland
+          - europe/germany
+          - europe/norway
+          - europe/poland
+          - europe/romania
+          - europe/sweden
+          - europe/turkey
+          - europe/ukraine
+        wof:
+          - bg
+          - dk
+          - fi
+          - de
+          - "no"
+          - pl
+          - ro
+          - se
+          - tr
+          - ua
+        openaddresses:
+          - bg/countrywide.csv
+          - dk/countrywide.csv
+          - fi/countrywide-fi.csv
+          - fi/countrywide-sv.csv
+          - de/bb/statewide.csv
+          - de/bw/statewide.csv
+          - de/hb/statewide.csv
+          - de/he/statewide.csv
+          - de/hh/statewide.csv
+          - de/nw/statewide.csv
+          - de/rp/statewide.csv
+          - de/sh/statewide.csv
+          - de/sl/statewide.csv
+          - de/sn/statewide.csv
+          - de/st/statewide.csv
+          - de/th/statewide.csv
+          - de/ni/statewide.csv
+          - de/mv/statewide.csv
+          - de/berlin.csv
+          - de/by/region_lower_bavaria.csv
+          - de/by/region_lower_franconia.csv
+          - de/by/region_middle_franconia.csv
+          - de/by/region_swabia.csv
+          - de/by/region_upper_bavaria.csv
+          - de/by/region_upper_franconia.csv
+          - de/by/region_upper_palatinate.csv
+          - no/countrywide.csv
+          - pl/dolnoslaskie.csv
+          - pl/kujawsko-pomorskie.csv
+          - pl/lodzkie.csv
+          - pl/lubelskie.csv
+          - pl/lubuskie.csv
+          - pl/malopolskie.csv
+          - pl/mazowieckie.csv
+          - pl/opolskie.csv
+          - pl/podkarpackie.csv
+          - pl/podlaskie.csv
+          - pl/pomorskie.csv
+          - pl/slaskie.csv
+          - pl/swietokrzyskie.csv
+          - pl/warminsko-mazurskie.csv
+          - pl/wielkopolskie.csv
+          - pl/zachodniopomorskie.csv
+          - se/municipality_of_alingsas.csv
+          - se/municipality_of_gislaved.csv
+          - se/municipality_of_goteborg.csv
+          - se/municipality_of_helsingborg.csv
+          - se/municipality_of_hoganas.csv
+          - se/municipality_of_kalmar.csv
+          - se/municipality_of_malmo.csv
+          - se/municipality_of_nacka.csv
+          - se/municipality_of_savsjö.csv
+          - se/municipality_of_stockholm.csv
+          - se/municipality_of_uppsala.csv
+          - se/municipality_of_vasteras.csv
+          - se/municipality_of_vaxholm.csv
+          - se/municipality_of_vaxjo.csv
+          - se/municipality_of_kristinehamn.csv
+          - se/municipality_of_Österåker.csv
+      srtm:
+        - belarus: [ 51, 57, 23, 33 ]
+        - bulgaria: [ 41, 45, 22, 29 ]
+        - denmark: [ 54, 58, 8, 16 ]
+        - estonia: [ 57, 60, 21, 29 ]
+        - finland: [ 59, 71, 20, 32 ]
+        - georgia: [ 41, 44, 40, 47 ]
+        - germany: [ 47, 51, 5, 16 ]
+        - latvia: [ 55, 59, 20, 29 ]
+        - lithuania: [ 53, 57, 20, 27 ]
+        - norway: [ 57, 72, 4, 32 ]
+        - poland: [ 49, 55, 14, 25 ]
+        - romania: [ 43, 49, 20, 30 ]
+        - russia: [ 41, 70, 27, 51 ]
+        - russia-kalingrad: [ 54, 56, 19, 23 ]
+        - sweden: [ 55, 70, 10, 25 ]
+        - turkey: [ 34, 43, 25, 45 ]
+        - ukraine: [ 44, 53, 22, 42 ]
+
+  - central-europe:
+      core:
+        osm:
+          - europe/czech-republic
+          - europe/hungary
+          - europe/moldova
+          - europe/poland
+          - europe/romania
+          - europe/slovakia
+          - europe/ukraine
+        wof:
+          - cz
+          - hu
+          - md
+          - pl
+          - ro
+          - sk
+          - ua
+        openaddresses:
+          - cz/countrywide.csv
+          - pl/dolnoslaskie.csv
+          - pl/kujawsko-pomorskie.csv
+          - pl/lodzkie.csv
+          - pl/lubelskie.csv
+          - pl/lubuskie.csv
+          - pl/malopolskie.csv
+          - pl/mazowieckie.csv
+          - pl/opolskie.csv
+          - pl/podkarpackie.csv
+          - pl/podlaskie.csv
+          - pl/pomorskie.csv
+          - pl/slaskie.csv
+          - pl/swietokrzyskie.csv
+          - pl/warminsko-mazurskie.csv
+          - pl/wielkopolskie.csv
+          - pl/zachodniopomorskie.csv
+          - sk/countrywide.csv
+      overlap:
+        extract:
+          - overlap_baltics-russia_central-europe.poly
+          - overlap_central-europe_scandinavia.poly
+          - overlap_central-europe_south-eastern-europe.poly
+          - overlap_central-europe_south-europe.poly
+          - overlap_central-europe_west-europe.poly
+        osm:
+          - europe/austria
+          - europe/belarus
+          - europe/bulgaria
+          - europe/croatia
+          - europe/denmark
+          - europe/estonia
+          - europe/finland
+          - europe/georgia
+          - europe/germany
+          - europe/latvia
+          - europe/lithuania
+          - europe/serbia
+          - europe/slovenia
+          - europe/sweden
+          - europe/turkey
+          - russia/central-fed-district
+          - russia/northwestern-fed-district
+          - russia/south-fed-district
+        wof:
+          - at
+          - by
+          - bg
+          - hr
+          - dk
+          - ee
+          - fi
+          - ge
+          - de
+          - lv
+          - lt
+          - rs
+          - si
+          - se
+          - tr
+          - ru
+        openaddresses:
+          - at/countrywide.csv
+          - by/countrywide.csv
+          - bg/countrywide.csv
+          - hr/countrywide.csv
+          - dk/countrywide.csv
+          - ee/countrywide.csv
+          - fi/countrywide-fi.csv
+          - fi/countrywide-sv.csv
+          - de/bb/statewide.csv
+          - de/bw/statewide.csv
+          - de/hb/statewide.csv
+          - de/he/statewide.csv
+          - de/hh/statewide.csv
+          - de/nw/statewide.csv
+          - de/rp/statewide.csv
+          - de/sh/statewide.csv
+          - de/sl/statewide.csv
+          - de/sn/statewide.csv
+          - de/st/statewide.csv
+          - de/th/statewide.csv
+          - de/ni/statewide.csv
+          - de/mv/statewide.csv
+          - de/berlin.csv
+          - de/by/region_lower_bavaria.csv
+          - de/by/region_lower_franconia.csv
+          - de/by/region_middle_franconia.csv
+          - de/by/region_swabia.csv
+          - de/by/region_upper_bavaria.csv
+          - de/by/region_upper_franconia.csv
+          - de/by/region_upper_palatinate.csv
+          - lv/countrywide.csv
+          - lt/countrywide.csv
+          - rs/countrywide.csv
+          - si/countrywide.csv
+          - se/municipality_of_alingsas.csv
+          - se/municipality_of_gislaved.csv
+          - se/municipality_of_goteborg.csv
+          - se/municipality_of_helsingborg.csv
+          - se/municipality_of_hoganas.csv
+          - se/municipality_of_kalmar.csv
+          - se/municipality_of_malmo.csv
+          - se/municipality_of_nacka.csv
+          - se/municipality_of_savsjö.csv
+          - se/municipality_of_stockholm.csv
+          - se/municipality_of_uppsala.csv
+          - se/municipality_of_vasteras.csv
+          - se/municipality_of_vaxholm.csv
+          - se/municipality_of_vaxjo.csv
+          - se/municipality_of_kristinehamn.csv
+          - se/municipality_of_Österåker.csv
+          - ru/mow/statewide.csv
+          - ru/vvg/statewide.csv
+      srtm:
+        - austria: [ 46, 50, 9, 18 ]
+        - belarus: [ 51, 57, 23, 33 ]
+        - bulgaria: [ 41, 45, 22, 29 ]
+        - croatia: [ 42, 47, 13, 20 ]
+        - czech-republic: [ 48, 52, 12, 19 ]
+        - denmark: [ 54, 58, 8, 16 ]
+        - estonia: [ 57, 60, 21, 29 ]
+        - finland: [ 59, 71, 20, 32 ]
+        - georgia: [ 41, 44, 40, 47 ]
+        - germany: [ 47, 51, 5, 16 ]
+        - hungary: [ 45, 49, 16, 23 ]
+        - latvia: [ 55, 59, 20, 29 ]
+        - lithuania: [ 53, 57, 20, 27 ]
+        - moldova: [ 45, 49, 26, 31 ]
+        - poland: [ 49, 55, 14, 25 ]
+        - romania: [ 43, 49, 20, 30 ]
+        - russia: [ 41, 70, 27, 51 ]
+        - russia-kalingrad: [ 54, 56, 19, 23 ]
+        - serbia: [ 41, 47, 18, 24 ]
+        - slovakia: [ 47, 50, 16, 23 ]
+        - slovenia: [ 45, 47, 13, 17 ]
+        - sweden: [ 55, 70, 10, 25 ]
+        - turkey: [ 34, 43, 25, 45 ]
+        - ukraine: [ 44, 53, 22, 42 ]
+
+  - iberian-peninsula:
+      core:
+        osm:
+          - europe/andorra
+          - europe/portugal
+          - europe/spain
+        wof:
+          - ad
+          - pt
+          - es
+        openaddresses:
+          - pt/countrywide.csv
+          - es/countrywide.csv
+      overlap:
+        extract:
+          - overlap_iberian-peninsula_south-europe.poly
+          - overlap_iberian-peninsula_uk-iceland.poly
+          - overlap_iberian-peninsula_west-europe.poly
+        osm:
+          - europe/france
+          - europe/ireland-and-northern-ireland
+          - europe/italy
+          - europe/monaco
+          - europe/united-kingdom
+        wof:
+          - fr
+          - ie
+          - it
+          - mc
+          - gb
+        openaddresses:
+          - fr/countrywide.csv
+          - it/countrywide.csv
+      srtm:
+        - andorra: [ 42, 43, 1, 2]
+        - portugal: [ 32, 43, -32, -5 ]
+        - spain: [ 27, 44, -19, 5,]
+        - france: [ 41, 52, -5, 10 ]
+        - ireland-and-northern-ireland: [ 51, 56, -11, -5 ]
+        - italy: [ 36, 48, 6, 19]
+        - monaco: [ 43, 44, 7, 8]
+        - united-kingdom: [ 49, 61, -9, 2 ]
+
+  - scandinavia:
+      gtfs_feeds:
+        - https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs.zip
+      core:
+        osm:
+          - europe/denmark
+          - europe/finland
+          - europe/norway
+          - europe/sweden
+        wof:
+          - dk
+          - "no"
+          - se
+          - fi
+        openaddresses:
+          - dk/countrywide.csv
+          - fi/countrywide-fi.csv
+          - fi/countrywide-sv.csv
+          - no/countrywide.csv
+          - se/municipality_of_alingsas.csv
+          - se/municipality_of_gislaved.csv
+          - se/municipality_of_goteborg.csv
+          - se/municipality_of_helsingborg.csv
+          - se/municipality_of_hoganas.csv
+          - se/municipality_of_kalmar.csv
+          - se/municipality_of_malmo.csv
+          - se/municipality_of_nacka.csv
+          - se/municipality_of_savsjö.csv
+          - se/municipality_of_stockholm.csv
+          - se/municipality_of_uppsala.csv
+          - se/municipality_of_vasteras.csv
+          - se/municipality_of_vaxholm.csv
+          - se/municipality_of_vaxjo.csv
+          - se/municipality_of_kristinehamn.csv
+          - se/municipality_of_Österåker.csv
+      overlap:
+        extract:
+          - overlap_baltics-russia_scandinavia.poly
+          - overlap_central-europe_scandinavia.poly
+          - overlap_scandinavia_uk-iceland.poly
+          - overlap_scandinavia_west-europe.poly
+        osm:
+          - europe/estonia
+          - europe/faroe-islands
+          - europe/germany
+          - europe/iceland
+          - europe/latvia
+          - europe/lithuania
+          - europe/poland
+          - europe/united-kingdom
+          - russia/northwestern-fed-district
+        wof:
+          - ee
+          - fo
+          - de
+          - is
+          - lv
+          - lt
+          - pl
+          - gb
+          - ru
+        openaddresses:
+          - ee/countrywide.csv
+          - fo/countrywide.csv
+          - de/bb/statewide.csv
+          - de/bw/statewide.csv
+          - de/hb/statewide.csv
+          - de/he/statewide.csv
+          - de/hh/statewide.csv
+          - de/nw/statewide.csv
+          - de/rp/statewide.csv
+          - de/sh/statewide.csv
+          - de/sl/statewide.csv
+          - de/sn/statewide.csv
+          - de/st/statewide.csv
+          - de/th/statewide.csv
+          - de/ni/statewide.csv
+          - de/mv/statewide.csv
+          - de/berlin.csv
+          - de/by/region_lower_bavaria.csv
+          - de/by/region_lower_franconia.csv
+          - de/by/region_middle_franconia.csv
+          - de/by/region_swabia.csv
+          - de/by/region_upper_bavaria.csv
+          - de/by/region_upper_franconia.csv
+          - de/by/region_upper_palatinate.csv
+          - is/countrywide.csv
+          - lv/countrywide.csv
+          - lt/countrywide.csv
+          - pl/dolnoslaskie.csv
+          - pl/kujawsko-pomorskie.csv
+          - pl/lodzkie.csv
+          - pl/lubelskie.csv
+          - pl/lubuskie.csv
+          - pl/malopolskie.csv
+          - pl/mazowieckie.csv
+          - pl/opolskie.csv
+          - pl/podkarpackie.csv
+          - pl/podlaskie.csv
+          - pl/pomorskie.csv
+          - pl/slaskie.csv
+          - pl/swietokrzyskie.csv
+          - pl/warminsko-mazurskie.csv
+          - pl/wielkopolskie.csv
+          - pl/zachodniopomorskie.csv
+          - ru/mow/statewide.csv
+          - ru/vvg/statewide.csv
+      srtm:
+        - denmark: [ 54, 58, 8, 16 ]
+        - estonia: [ 57, 60, 21, 29 ]
+        - faroe-islands: [ 61, 63, -8, -6 ]
+        - finland: [ 59, 71, 20, 32 ]
+        - germany: [ 47, 51, 5, 16 ]
+        - iceland: [ 63, 67, -26, -13 ]
+        - latvia: [ 55, 59, 20, 29 ]
+        - lithuania: [ 53, 57, 20, 27 ]
+        - norway: [ 57, 72, 4, 32 ]
+        - poland: [ 49, 55, 14, 25 ]
+        - russia: [ 41, 70, 27, 51 ]
+        - russia-kalingrad: [ 54, 56, 19, 23 ]
+        - sweden: [ 55, 70, 10, 25 ]
+        - united-kingdom: [ 49, 61, -9, 2 ]
+
+  - south-eastern-europe:
+      core:
+        osm:
+          - europe/albania
+          - europe/bulgaria
+          - europe/greece
+          - europe/kosovo
+          - europe/macedonia
+          - europe/montenegro
+          - europe/serbia
+          - europe/turkey
+        wof:
+          - al
+          - bg
+          - gr
+          - xk
+          - mk
+          - me
+          - rs
+          - tr
+        openaddresses:
+          - bg/countrywide.csv
+          - xk/countrywide.csv
+          - rs/countrywide.csv
+      overlap:
+        extract:
+          - overlap_baltics-russia_south-eastern-europe.poly
+          - overlap_central-europe_south-eastern-europe.poly
+          - overlap_south-eastern-europe_south-europe.poly
+        osm:
+          - europe/bosnia-herzegovina
+          - europe/croatia
+          - europe/georgia
+          - europe/hungary
+          - europe/italy
+          - europe/romania
+          - europe/ukraine
+          - russia/north-caucasus-fed-district
+          - russia/south-fed-district
+        wof:
+          - ba
+          - hr
+          - ge
+          - hu
+          - it
+          - ro
+          - ua
+          - ru
+        openaddresses:
+          - hr/countrywide.csv
+          - it/countrywide.csv
+          - ru/mow/statewide.csv
+          - ru/vvg/statewide.csv
+      srtm:
+        - albania: [ 39, 43, 19, 22 ]
+        - bosnia-herzegovina: [ 42, 46, 15, 20 ]
+        - bulgaria: [ 41, 45, 22, 29 ]
+        - croatia: [ 42, 47, 13, 20 ]
+        - georgia: [ 41, 44, 40, 47 ]
+        - greece: [ 34, 42, 19, 30 ]
+        - hungary: [ 45, 49, 16, 23 ]
+        - italy: [ 36, 48, 6, 19]
+        - kosovo: [ 41, 44, 20, 22 ]
+        - macedonia: [ 40, 43, 20, 24 ]
+        - montenegro: [ 41, 44, 18, 21 ]
+        - romania: [ 43, 49, 20, 30 ]
+        - russia: [ 41, 70, 27, 51 ]
+        - russia-kalingrad: [ 54, 56, 19, 23 ]
+        - serbia: [ 41, 47, 18, 24 ]
+        - turkey: [ 34, 43, 25, 45 ]
+        - ukraine: [ 44, 53, 22, 42 ]
+
+  - south-europe:
+      core:
+        osm:
+          - europe/austria
+          - europe/bosnia-herzegovina
+          - europe/croatia
+          - europe/italy
+          - europe/liechtenstein
+          - europe/malta
+          - europe/slovenia
+          - europe/switzerland
+        wof:
+          - at
+          - ba
+          - hr
+          - it
+          - li
+          - mt
+          - si
+          - ch
+        openaddresses:
+          - at/countrywide.csv
+          - hr/countrywide.csv
+          - it/countrywide.csv
+          - li/countrywide.csv
+          - si/countrywide.csv
+          - ch/countrywide.csv
+      overlap:
+        extract:
+          - overlap_central-europe_south-europe.poly
+          - overlap_iberian-peninsula_south-europe.poly
+          - overlap_south-eastern-europe_south-europe.poly
+          - overlap_south-europe_west-europe.poly
+        osm:
+          - europe/albania
+          - europe/czech-republic
+          - europe/france
+          - europe/germany
+          - europe/greece
+          - europe/hungary
+          - europe/monaco
+          - europe/montenegro
+          - europe/serbia
+          - europe/slovakia
+          - europe/spain
+        wof:
+          - al
+          - cz
+          - fr
+          - de
+          - gr
+          - hu
+          - mc
+          - me
+          - rs
+          - sk
+          - es
+        openaddresses:
+          - cz/countrywide.csv
+          - fr/countrywide.csv
+          - de/bb/statewide.csv
+          - de/bw/statewide.csv
+          - de/hb/statewide.csv
+          - de/he/statewide.csv
+          - de/hh/statewide.csv
+          - de/nw/statewide.csv
+          - de/rp/statewide.csv
+          - de/sh/statewide.csv
+          - de/sl/statewide.csv
+          - de/sn/statewide.csv
+          - de/st/statewide.csv
+          - de/th/statewide.csv
+          - de/ni/statewide.csv
+          - de/mv/statewide.csv
+          - de/berlin.csv
+          - de/by/region_lower_bavaria.csv
+          - de/by/region_lower_franconia.csv
+          - de/by/region_middle_franconia.csv
+          - de/by/region_swabia.csv
+          - de/by/region_upper_bavaria.csv
+          - de/by/region_upper_franconia.csv
+          - de/by/region_upper_palatinate.csv
+          - rs/countrywide.csv
+          - sk/countrywide.csv
+          - es/countrywide.csv
+      srtm:
+        - albania: [ 39, 43, 19, 22 ]
+        - austria: [ 46, 50, 9, 18 ]
+        - bosnia-herzegovina: [ 42, 46, 15, 20 ]
+        - croatia: [ 42, 47, 13, 20 ]
+        - czech-republic: [ 48, 52, 12, 19 ]
+        - greece: [ 34, 42, 19, 30 ]
+        - spain: [ 27, 44, -19, 5,]
+        - france: [ 41, 52, -5, 10 ]
+        - germany: [ 47, 51, 5, 16 ]
+        - hungary: [ 45, 49, 16, 23 ]
+        - italy: [ 36, 48, 6, 19]
+        - liechtenstein: [ 47, 48, 9, 10 ]
+        - malta: [ 35, 37, 14, 15 ]
+        - monaco: [ 43, 44, 7, 8]
+        - montenegro: [ 41, 44, 18, 21 ]
+        - serbia: [ 41, 47, 18, 24 ]
+        - slovakia: [ 47, 50, 16, 23 ]
+        - slovenia: [ 45, 47, 13, 17 ]
+        - switzerland: [ 45, 48, 5, 11 ]
+
+  - uk-iceland:
+      core:
+        osm:
+          - europe/guernsey-jersey
+          - europe/faroe-islands
+          - europe/iceland
+          - europe/ireland-and-northern-ireland
+          - europe/isle-of-man
+          - europe/united-kingdom
+        wof:
+          - gg
+          - je
+          - fo
+          - is
+          - ie
+          - im
+          - gb
+        openaddresses:
+          - gg/countrywide.csv
+          - fo/countrywide.csv
+          - is/countrywide.csv
+      overlap:
+        extract:
+          - overlap_iberian-peninsula_uk-iceland.poly
+          - overlap_scandinavia_uk-iceland.poly
+          - overlap_uk-iceland_west-europe.poly
+        osm:
+          - europe/belgium
+          - europe/denmark
+          - europe/france
+          - europe/netherlands
+          - europe/norway
+          - europe/spain
+        wof:
+          - be
+          - dk
+          - fr
+          - nl
+          - "no"
+          - es
+        openaddresses:
+          - be/bru/bosa-region-brussels-fr.csv
+          - be/bru/bosa-region-brussels-nl.csv
+          - be/vlg/bosa-region-flanders-fr.csv
+          - be/vlg/bosa-region-flanders-nl.csv
+          - be/wal/bosa-region-wallonia-de.csv
+          - be/wal/bosa-region-wallonia-fr.csv
+          - dk/countrywide.csv
+          - fr/countrywide.csv
+          - nl/countrywide.csv
+          - no/countrywide.csv
+          - es/countrywide.csv
+      srtm:
+        - belgium: [ 49, 52, 2, 7 ]
+        - denmark: [ 54, 58, 8, 16 ]
+        - faroe-islands: [ 61, 63, -8, -6 ]
+        - guernsey-jersey: [ 49, 50, -3, -1 ]
+        - spain: [ 27, 44, -19, 5,]
+        - france: [ 41, 52, -5, 10 ]
+        - iceland: [ 63, 67, -26, -13 ]
+        - ireland-and-northern-ireland: [ 51, 56, -11, -5 ]
+        - isle-of-man: [ 54, 55, -5, -2 ]
+        - netherlands: [ 50, 54, 3, 8 ]
+        - norway: [ 57, 72, 4, 32 ]
+        - united-kingdom: [ 49, 61, -9, 2 ]
+
+  - west-europe:
+      gtfs_feeds:
+        - https://gtfs.irail.be/nmbs/feed/gtfs.zip
+        - https://opendata.delijn.be/gtfs/google_transit.zip
+        - https://gtfs.ovapi.nl/nl/gtfs-nl.zip
+      core:
+        osm:
+          - europe/belgium
+          - europe/france
+          - europe/germany
+          - europe/luxembourg
+          - europe/monaco
+          - europe/netherlands
+        wof:
+          - be
+          - fr
+          - de
+          - lu
+          - mc
+        openaddresses:
+          - be/bru/bosa-region-brussels-fr.csv
+          - be/bru/bosa-region-brussels-nl.csv
+          - be/vlg/bosa-region-flanders-fr.csv
+          - be/vlg/bosa-region-flanders-nl.csv
+          - be/wal/bosa-region-wallonia-de.csv
+          - be/wal/bosa-region-wallonia-fr.csv
+          - fr/countrywide.csv
+          - de/bb/statewide.csv
+          - de/bw/statewide.csv
+          - de/hb/statewide.csv
+          - de/he/statewide.csv
+          - de/hh/statewide.csv
+          - de/nw/statewide.csv
+          - de/rp/statewide.csv
+          - de/sh/statewide.csv
+          - de/sl/statewide.csv
+          - de/sn/statewide.csv
+          - de/st/statewide.csv
+          - de/th/statewide.csv
+          - de/ni/statewide.csv
+          - de/mv/statewide.csv
+          - de/berlin.csv
+          - de/by/region_lower_bavaria.csv
+          - de/by/region_lower_franconia.csv
+          - de/by/region_middle_franconia.csv
+          - de/by/region_swabia.csv
+          - de/by/region_upper_bavaria.csv
+          - de/by/region_upper_franconia.csv
+          - de/by/region_upper_palatinate.csv
+          - lu/countrywide.csv
+          - nl/countrywide.csv
+      overlap:
+        extract:
+          - overlap_central-europe_west-europe.poly
+          - overlap_iberian-peninsula_west-europe.poly
+          - overlap_scandinavia_west-europe.poly
+          - overlap_south-europe_west-europe.poly
+          - overlap_uk-iceland_west-europe.poly
+        osm:
+          - europe/andorra
+          - europe/austria
+          - europe/czech-republic
+          - europe/denmark
+          - europe/guernsey-jersey
+          - europe/ireland-and-northern-ireland
+          - europe/italy
+          - europe/liechtenstein
+          - europe/poland
+          - europe/spain
+          - europe/sweden
+          - europe/switzerland
+          - europe/united-kingdom
+        wof:
+          - ad
+          - at
+          - cz
+          - dk
+          - gg
+          - je
+          - ie
+          - it
+          - li
+          - pl
+          - es
+          - se
+          - ch
+          - gb
+        openaddresses:
+          - at/countrywide.csv
+          - cz/countrywide.csv
+          - dk/countrywide.csv
+          - gg/countrywide.csv
+          - it/countrywide.csv
+          - li/countrywide.csv
+          - pl/dolnoslaskie.csv
+          - pl/kujawsko-pomorskie.csv
+          - pl/lodzkie.csv
+          - pl/lubelskie.csv
+          - pl/lubuskie.csv
+          - pl/malopolskie.csv
+          - pl/mazowieckie.csv
+          - pl/opolskie.csv
+          - pl/podkarpackie.csv
+          - pl/podlaskie.csv
+          - pl/pomorskie.csv
+          - pl/slaskie.csv
+          - pl/swietokrzyskie.csv
+          - pl/warminsko-mazurskie.csv
+          - pl/wielkopolskie.csv
+          - pl/zachodniopomorskie.csv
+          - es/countrywide.csv
+          - se/municipality_of_alingsas.csv
+          - se/municipality_of_gislaved.csv
+          - se/municipality_of_goteborg.csv
+          - se/municipality_of_helsingborg.csv
+          - se/municipality_of_hoganas.csv
+          - se/municipality_of_kalmar.csv
+          - se/municipality_of_malmo.csv
+          - se/municipality_of_nacka.csv
+          - se/municipality_of_savsjö.csv
+          - se/municipality_of_stockholm.csv
+          - se/municipality_of_uppsala.csv
+          - se/municipality_of_vasteras.csv
+          - se/municipality_of_vaxholm.csv
+          - se/municipality_of_vaxjo.csv
+          - se/municipality_of_kristinehamn.csv
+          - se/municipality_of_Österåker.csv
+          - ch/countrywide.csv
+      srtm:
+        - andorra: [ 42, 43, 1, 2]
+        - austria: [ 46, 50, 9, 18 ]
+        - belgium: [ 49, 52, 2, 7 ]
+        - denmark: [ 54, 58, 8, 16 ]
+        - czech-republic: [ 48, 52, 12, 19 ]
+        - france: [ 41, 52, -5, 10 ]
+        - germany: [ 47, 51, 5, 16 ]
+        - guernsey-jersey: [ 49, 50, -3, -1 ]
+        - ireland-and-northern-ireland: [ 51, 56, -11, -5 ]
+        - italy: [ 36, 48, 6, 19]
+        - liechtenstein: [ 47, 48, 9, 10 ]
+        - luxembourg: [ 49, 51, 5, 7 ]
+        - monaco: [ 43, 44, 7, 8]
+        - netherlands: [ 50, 54, 3, 8 ]
+        - poland: [ 49, 55, 14, 25 ]
+        - spain: [ 27, 44, -19, 5,]
+        - sweden: [ 55, 70, 10, 25 ]
+        - switzerland: [ 45, 48, 5, 11 ]
+        - united-kingdom: [ 49, 61, -9, 2 ]
+
+# Detection of border crossings
+border-regions:
+  - name: baltics-russia_central-europe
+    region-poly: br_baltics-russia_central-europe.poly
+    regions:
+      - baltics-russia
+      - central-europe
+  - name: baltics-russia_scandinavia
+    region-poly: br_baltics-russia_scandinavia.poly
+    regions:
+      - baltics-russia
+      - scandinavia
+  - name: baltics-russia_south-eastern-europe
+    region-poly: br_baltics-russia_south-eastern-europe.poly
+    regions:
+      - baltics-russia
+      - south-eastern-europe
+  - name: central-europe_south-eastern-europe
+    region-poly: br_central-europe_south-eastern-europe.poly
+    regions:
+      - central-europe
+      - south-eastern-europe
+  - name: central-europe_south-europe
+    region-poly: br_central-europe_south-europe.poly
+    regions:
+      - central-europe
+      - south-europe
+  - name: central-europe_west-europe
+    region-poly: br_central-europe_west-europe.poly
+    regions:
+      - central-europe
+      - west-europe
+  - name: iberian-peninsula_west-europe
+    region-poly: br_iberian-peninsula_west-europe.poly
+    regions:
+      - iberian-peninsula
+      - west-europe
+  - name: scandinavia_west-europe
+    region-poly: br_scandinavia_west-europe.poly
+    regions:
+      - scandinavia
+      - west-europe
+  - name: south-eastern-europe_south-europe
+    region-poly: br_south-eastern-europe_south-europe.poly
+    regions:
+      - south-eastern-europe
+      - south-europe
+  - name: south-europe_west-europe
+    region-poly: br_south-europe_west-europe.poly
+    regions:
+      - south-europe
+      - west-europe

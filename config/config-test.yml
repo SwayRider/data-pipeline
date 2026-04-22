@@ -1,0 +1,313 @@
+# Parallelisation for the generic pipeline
+# tiles pipeline uses it's own internal parallelisation
+max_workers: 6
+
+# source data paths
+source_paths:
+  config: ./config
+  border_polygons: ./gis/export/borders
+  overlap_polygons: ./gis/export/overlap
+
+# build paths
+build_paths:
+  download_dir: /mnt/hdd-pool/swayrider/data/pipeline/download
+  temp_dir: /mnt/hdd-pool/swayrider/data/pipeline/tmp
+  tools_dir: /mnt/hdd-pool/swayrider/data/pipeline/tools
+  result_dir: /mnt/hdd-pool/swayrider/data/pipeline/result
+
+# Download locations for public data
+download_urls:
+  osm: "https://download.geofabrik.de/"
+  srtm: "s3://elevation-tiles-prod/skadi/"
+  natural-earth: "https://naturalearth.s3.amazonaws.com/"
+  osm-land-polygons: "https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip"
+
+output:
+  geodata_dir: /tmp/swayrider/geodata
+
+# Valhalla setup details
+valhalla:
+  repo_base: https://github.com/valhalla
+  repos:
+    - valhalla:3.6.1:
+        git-submodule-update: true
+        cmake-build: true
+        cmake-opts:
+          - -DENABLE_PYTHON_BINDINGS=OFF
+          - -DENABLE_SERVICES=OFF
+          - -DENABLE_BENCHMARKS=OFF
+          - -DENABLE_TESTS=OFF
+          - -DCMAKE_CXX_FLAGS=-Wno-error=format-truncation -Wno-deprecated-declarations
+        make-build: true
+        make-opts:
+          - all
+          - -j4
+
+# Definition of the pelias setup we will do
+pelias:
+  repo_base: https://github.com/pelias
+  repos:
+    - config:v6.0.0:
+        npm-install: true
+    - schema:v9.1.0:
+        npm-intstall: true
+        npm-extra-pkgs:
+          - pelias-config
+    - whosonfirst:v8.3.0:
+        npm-install: true
+        npm-extra-pkgs:
+          - pelias-config
+    - geonames:v6.3.0:
+        npm-install: true
+        npm-extra-pkgs:
+          - pelias-config
+    - openaddresses:v6.5.0:
+        npm-install: true
+        npm-extra-pkgs:
+          - pelias-config
+    - openstreetmap:v8.3.0:
+        npm-install: true
+        npm-extra-pkgs:
+          - pelias-config
+  config: pelias-load.json
+  config_prod: pelias-prod.json
+  placeholder_url: https://data.geocode.earth/placeholder/store.sqlite3.gz
+  es_local_port: 39200
+  es_host_prod: sw-dev-elasticsearch
+  es_port_prod: 9200
+  snapshot_repo_path: /usr/share/elasticsearch/snapshots
+  snapshot_repo_name: pelias_repo
+  elastic:
+    version: 7.17.28
+    api_version: 7.x
+    host: localhost
+    port: 39200
+
+# definition of extra tools to build
+tippecanoe:
+  repo_base: https://github.com/mapbox
+  repos:
+    - tippecanoe:1.36.0:
+        make-build: true
+
+# GDAL
+osgeo:
+  repo_base: https://github.com/OSGeo
+  repos:
+    - gdal:v3.12.1:
+        cmake-build: true
+        cmake-compile: true
+
+# Natural Eaurth files
+natural_earth:
+  - 10m_physical/ne_10m_land.zip
+  - 10m_physical/ne_10m_ocean.zip
+  - 10m_cultural/ne_10m_admin_0_countries.zip
+  - 10m_cultural/ne_10m_urban_areas.zip
+  - 10m_cultural/ne_10m_roads.zip
+
+# Full size of the known region
+region_size:
+  min_lat: 20
+  max_lat: 90
+  min_lon: -40
+  max_lon: 50 
+
+# Size of a tile
+tile_size: 10
+
+# Definitions of the regions we need to build the tileserver data
+tile_regions:
+  - europe
+
+# Definitions of the regions we need to build
+# 
+# OSM Interface:
+#   https://download.geofabrik.de/
+#
+# WOS interface for determining country codes:
+#   https://geocode.earth/data/whosonfirst#AD
+#
+# OpenAddress interface:
+#   https://github.com/openaddresses/openaddresses/tree/master/data
+regions:
+  - iberian-peninsula:
+      core:
+        osm:
+          - europe/andorra
+          - europe/portugal
+          - europe/spain
+        wof:
+          - ad
+          - pt
+          - es
+        openaddresses:
+          - pt/countrywide.csv
+          - es/countrywide.csv
+      overlap:
+        extract:
+          - overlap_iberian-peninsula_south-europe.poly
+          - overlap_iberian-peninsula_uk-iceland.poly
+          - overlap_iberian-peninsula_west-europe.poly
+        osm:
+          - europe/france
+          - europe/ireland-and-northern-ireland
+          - europe/italy
+          - europe/monaco
+          - europe/united-kingdom
+        wof:
+          - fr
+          - ie
+          - it
+          - mc
+          - gb
+        openaddresses:
+          - it/countrywide.csv
+      srtm:
+        - andorra: [ 42, 43, 1, 2]
+        - portugal: [ 32, 43, -32, -5 ]
+        - spain: [ 27, 44, -19, 5,]
+        - france: [ 41, 52, -5, 10 ]
+        - ireland-and-northern-ireland: [ 51, 56, -11, -5 ]
+        - italy: [ 36, 48, 6, 19]
+        - monaco: [ 43, 44, 7, 8]
+        - united-kingdom: [ 49, 61, -9, 2 ]
+
+  - west-europe:
+      core:
+        osm:
+          - europe/belgium
+          - europe/france
+          - europe/germany
+          - europe/luxembourg
+          - europe/monaco
+          - europe/netherlands
+        wof:
+          - be
+          - fr
+          - de
+          - lu
+          - mc
+        openaddresses:
+          - be/bru/bosa-region-brussels-fr.csv
+          - be/bru/bosa-region-brussels-nl.csv
+          - be/vlg/bosa-region-flanders-fr.csv
+          - be/vlg/bosa-region-flanders-nl.csv
+          - be/wal/bosa-region-wallonia-de.csv
+          - fr/countrywide.csv
+          - de/bb/statewide.csv
+          - de/bw/statewide.csv
+          - de/hb/statewide.csv
+          - de/he/statewide.csv
+          - de/hh/statewide.csv
+          - de/nw/statewide.csv
+          - de/rp/statewide.csv
+          - de/sh/statewide.csv
+          - de/sl/statewide.csv
+          - de/sn/statewide.csv
+          - de/st/statewide.csv
+          - de/th/statewide.csv
+          - lu/countrywide.csv
+      overlap:
+        extract:
+          - overlap_central-europe_west-europe.poly
+          - overlap_iberian-peninsula_west-europe.poly
+          - overlap_scandinavia_west-europe.poly
+          - overlap_south-europe_west-europe.poly
+          - overlap_uk-iceland_west-europe.poly
+        osm:
+          - europe/andorra
+          - europe/austria
+          - europe/czech-republic
+          - europe/denmark
+          - europe/guernsey-jersey
+          - europe/ireland-and-northern-ireland
+          - europe/italy
+          - europe/liechtenstein
+          - europe/poland
+          - europe/spain
+          - europe/sweden
+          - europe/switzerland
+          - europe/united-kingdom
+        wof:
+          - ad
+          - at
+          - cz
+          - dk
+          - gg
+          - je
+          - ie
+          - it
+          - li
+          - pl
+          - es
+          - se
+          - ch
+          - gb
+        openaddresses:
+          - at/countrywide.csv
+          - cz/countrywide.csv
+          - dk/countrywide.csv
+          - gg/countrywide.csv
+          - it/countrywide.csv
+          - li/countrywide.csv
+          - pl/dolnoslaskie.csv
+          - pl/kujawsko-pomorskie.csv
+          - pl/lodzkie.csv
+          - pl/lubelskie.csv
+          - pl/lubuskie.csv
+          - pl/malopolskie.csv
+          - pl/mazowieckie.csv
+          - pl/opolskie.csv
+          - pl/podkarpackie.csv
+          - pl/podlaskie.csv
+          - pl/pomorskie.csv
+          - pl/slaskie.csv
+          - pl/swietokrzyskie.csv
+          - pl/warminsko-mazurskie.csv
+          - pl/wielkopolskie.csv
+          - pl/zachodniopomorskie.csv
+          - es/countrywide.csv
+          - se/municipality_of_alingsas.csv
+          - se/municipality_of_gislaved.csv
+          - se/municipality_of_goteborg.csv
+          - se/municipality_of_helsingborg.csv
+          - se/municipality_of_hoganas.csv
+          - se/municipality_of_kalmar.csv
+          - se/municipality_of_malmo.csv
+          - se/municipality_of_nacka.csv
+          - se/municipality_of_savsjö.csv
+          - se/municipality_of_stockholm.csv
+          - se/municipality_of_uppsala.csv
+          - se/municipality_of_vasteras.csv
+          - se/municipality_of_vaxholm.csv
+          - se/municipality_of_vaxjo
+          - ch/countrywide.csv
+      srtm:
+        - andorra: [ 42, 43, 1, 2]
+        - austria: [ 46, 50, 99, 18 ]
+        - belgium: [ 49, 52, 2, 7 ]
+        - denmark: [ 54, 58, 8, 16 ]
+        - czech-republic: [ 48, 52, 12, 19 ]
+        - france: [ 41, 52, -5, 10 ]
+        - germany: [ 47, 51, 5, 16 ]
+        - guernsey-jersey: [ 49, 50, -3, -1 ]
+        - ireland-and-northern-ireland: [ 51, 56, -11, -5 ]
+        - italy: [ 36, 48, 6, 19]
+        - liechtenstein: [ 47, 48, 9, 10 ]
+        - luxembourg: [ 49, 51, 5, 7 ]
+        - monaco: [ 43, 44, 7, 8]
+        - netherlands: [ 50, 54, 3, 8 ]
+        - poland: [ 49, 55, 14, 25 ]
+        - spain: [ 27, 44, -19, 5,]
+        - sweden: [ 55, 70, 10, 25 ]
+        - switzerland: [ 45, 48, 5, 11 ]
+        - united-kingdom: [ 49, 61, -9, 2 ]
+        
+# Detection of border crossings
+border-regions:
+  - name: iberian-peninsula_west-europe
+    region-poly: br_iberian-peninsula_west-europe.poly
+    regions:
+      - iberian-peninsula
+      - west-europe

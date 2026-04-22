@@ -1,0 +1,143 @@
+{
+  "esclient": {
+    "apiVersion": "${es_api_version}",
+    "keepAlive": true,
+    "requestTimeout": "120000",
+    "hosts": [{
+      "env": "development",
+      "protocol": "http",
+      "host": "${es_host}",
+      "port": ${es_port}
+    }],
+    "log": [{
+      "type": "stdio",
+      "json": false,
+      "level": [ "error", "warning" ]
+    }]
+  },
+  "elasticsearch": {
+    "settings": {
+      "index": {
+        "number_of_replicas": "0",
+        "number_of_shards": "1",
+        "refresh_interval": "1m"
+      }
+    }
+  },
+  "interpolation": {
+    "client": {
+      "adapter": "null"
+    }
+  },
+  "dbclient": {
+    "statFrequency": 10000,
+    "batchSize": 500
+  },
+  "api": {
+    "accessLog": "common",
+    "indexName": "pelias_${region_name}-${tag}",
+    "services": {
+        "placeholder": {
+            "url": "${placeholder_url}"
+        },
+        "libpostal": {
+            "url": "${libpostal_url}"
+        },
+        "pip": {
+            "url": "${pip_url}",
+            "timeout": 1000,
+            "retries": 2
+        }
+    },
+    "targets": {
+      "auto_discover": true,
+      "canonical_sources": ["whosonfirst", "openstreetmap", "openaddresses", "geonames"],
+      "layers_by_source": {
+        "openstreetmap": [ "address", "venue", "street" ],
+        "openaddresses": [ "address" ],
+        "geonames": [
+          "country", "macroregion", "region", "county", "localadmin", "locality", "borough",
+          "neighbourhood", "venue"
+        ],
+        "whosonfirst": [
+            "continent", "empire", "country", "dependency", "macroregion", "region", "locality",
+            "localadmin", "macrocounty", "county", "macrohood", "borough", "neighbourhood",
+            "microhood", "disputed", "venue", "postalcode", "ocean", "marinearea"
+        ]
+      },
+      "source_aliases": {
+        "osm": [ "openstreetmap" ],
+        "oa": [ "openaddresses" ],
+        "gn": [ "geonames" ],
+        "wof": [ "whosonfirst" ]
+      },
+      "layer_aliases": {
+        "coarse": [
+          "continent", "empire", "country", "dependency", "macroregion", "region", "locality",
+          "localadmin", "macrocounty", "county", "macrohood", "borough", "neighbourhood",
+          "microhood", "disputed", "postalcode", "ocean", "marinearea"
+        ]
+      }
+    }
+  },
+  "schema": {
+    "indexName": "pelias_${region_name}-${tag}"
+  },
+  "logger": {
+    "level": "info",
+    "timestamp": true,
+    "colorize": true
+  },
+  "acceptance-tests": {
+    "endpoints": {
+      "local": "http://localhost:3100/v1/"
+    }
+  },
+  "imports": {
+    "adminLookup": {
+      "enabled": true,
+      "maxConcurrentRequests": 100,
+      "usePostalCities": true
+    },
+    "blacklist": {
+      "files": []
+    },
+    "csv": {
+      "datapath": "${overture_data_path}",
+      "files": [
+        "overture-places.csv",
+        "overture-addresses.csv"
+      ]
+    },
+    "geonames": {
+      "datapath": "${geonames_data_path}",
+      "countryCode": "ALL"
+    },
+    "openstreetmap": {
+      "datapath": "${openstreetmap_data_path}",
+      "leveldbpath": "/tmp",
+      "removeDisusedVenues": true,
+      "import": [{
+        "filename": "${openstreetmap_file_name}"
+      }]
+    },
+    "openaddresses": {
+      "datapath": "${openaddresses_data_path}",
+      "token": "oa.bbbcf5787bb4251445883cc417f811ba02b9fd64809fd56c5a972171fbcfb2f6",
+      "files": ${openaddresses_files}
+    },
+    "polyline": {
+      "datapath": "${openstreetmap_data_path}",
+      "files": ["${openstreetmap_file_name}"]
+    },
+    "whosonfirst": {
+      "datapath": "${wof_data_path}",
+      "importPostalcodes": true,
+      "countryCode": ${wof_country_codes}
+    },
+    "transit": {
+      "datapath": "${gtfs_data_path}"
+    }
+  }
+}
+

@@ -1,0 +1,33 @@
+services:
+  prepare-elasticsearch:
+    image: alpine
+    container_name: sw-pelias-prepare-elasticsearch
+    restart: "no"
+    volumes:
+      - "${ES_DATA_DIR}:/usr/share/elasticsearch/data"
+      - "${ES_SNAPSHOT_DIR}:/usr/share/elasticsearch/snapshots"
+    command: >
+      /bin/sh -c "
+        chown -R 1000:1000 /usr/share/elasticsearch/data &&
+        chown -R 1000:1000 /usr/share/elasticsearch/snapshots
+      "
+
+  elasticsearch:
+    image: elasticsearch:7.17.28
+    container_name: sw-pelias-elasticsearch
+    restart: "no"
+    depends_on:
+      - prepare-elasticsearch
+    environment:
+      - "discovery.type=single-node"
+      - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+      - "xpack.security.enabled=false"
+      - "xpack.license.self_generated.type=basic"
+      - "path.repo=/usr/share/elasticsearch/snapshots"
+    entrypoint: ["sh", "-c", "/usr/local/bin/es-init.sh"]
+    ports:
+      - "${ES_PORT}:9200"
+    volumes:
+      - "./es-init.sh:/usr/local/bin/es-init.sh"
+      - "${ES_DATA_DIR}:/usr/share/elasticsearch/data"
+      - "${ES_SNAPSHOT_DIR}:/usr/share/elasticsearch/snapshots"
