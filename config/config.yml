@@ -7,12 +7,12 @@ source_paths:
   border_polygons: ./gis/export/borders
   overlap_polygons: ./gis/export/overlap
 
-# build paths
+# build paths — configure these for your server before running the pipeline
 build_paths:
-  download_dir: /Volumes/T7 OSX/Swayrider/pipeline/download
-  temp_dir: /Volumes/T7 OSX/Swayrider/pipeline/tmp
-  tools_dir: /Volumes/T7 OSX/Swayrider/pipeline/tools
-  result_dir: /Volumes/T7 OSX/Swayrider/pipeline/result
+  download_dir: /path/to/pipeline/download
+  temp_dir: /path/to/pipeline/tmp
+  tools_dir: /path/to/pipeline/tools
+  result_dir: /path/to/pipeline/result
 
 # Download locations for public data
 download_urls:
@@ -22,7 +22,7 @@ download_urls:
   osm-land-polygons: "https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip"
 
 output:
-  geodata_dir: "/Volumes/T7 OSX/swayrider/geodata"
+  geodata_dir: /path/to/geodata
 
 # Valhalla setup details
 valhalla:
