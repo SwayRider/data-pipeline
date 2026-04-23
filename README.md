@@ -1,3 +1,5 @@
+> **⚠️ Prototype Code** — This codebase is under active development and will change extensively in the near future. APIs, commands, and data schemas are subject to breaking changes.
+
 # SwayRider Data Pipeline
 
 The data pipeline builds all geodata required by the SwayRider backend: vector tile MBTiles,
@@ -189,13 +191,19 @@ Generates vector tile MBTiles from large regional OSM extracts and Natural Earth
 4. Export GeoJSON per layer using `osmium export`
 5. Clean null/empty properties from road files
 6. Extract highway label features (`highway_labels.geojson`) from roads — A/E numbers split into separate features per ref value (see [Highway label extraction](#highway-label-extraction))
-7. Filter small polygons (L1 land: area < 0.0008°²; water polygons by area, bbox and connectivity; forest polygons by area and compactness)
-8. Stamp `tippecanoe` minzoom hints on water features (L1: 7, L2: 11) and forest features (L1: 7, L2: 11) to prevent pop-in/pop-out
-9. Simplify geometries per level/layer with `ogr2ogr`
-10. Add `minzoom` properties and convert to Tippecanoe format
-11. Build MBTiles per zoom level with `tippecanoe`
-12. Archive to `tiles.tar`
-13. (Optional) Publish artifacts to output directory
+7. Urban post-processing (Step 3)
+8. Add `minzoom` properties to places
+9. Filter water polygons by area, bbox and connectivity
+10. Filter land polygons by area
+11. Filter forest polygons by area and compactness
+12. Simplify geometries per level/layer with `ogr2ogr`
+13. Add `tippecanoe.minzoom` hints to water features
+14. Add `tippecanoe.minzoom` hints to forest features
+15. Tag motorway_link features
+16. Add `minzoom` properties and convert to Tippecanoe format
+17. Build MBTiles per zoom level with `tippecanoe`
+18. Archive to `tiles.tar`
+19. (Optional) Publish artifacts to output directory
 
 ---
 
@@ -206,13 +214,14 @@ Generates vector tile MBTiles from large regional OSM extracts and Natural Earth
 Run the OSM data pipeline.
 
 ```
-./build-osm [--config CONFIG] [--clean] [--tag TAG]
+./build-osm [--config CONFIG] [--clean] [--clean-all] [--tag TAG]
 ```
 
 | Flag | Description |
 |---|---|
 | `--config` | Path to config file (default: `config/config.yml`) |
-| `--clean` | Clean build directories before running |
+| `--clean` | Clean this pipeline's temp and result data before running |
+| `--clean-all` | Clean all pipeline directories before running |
 | `--tag` | Version tag; defaults to current date `YYYY-MM-DD` |
 
 ### `./build-border-data`
@@ -220,13 +229,14 @@ Run the OSM data pipeline.
 Run the border data pipeline.
 
 ```
-./build-border-data [--config CONFIG] [--clean] [--tag TAG]
+./build-border-data [--config CONFIG] [--clean] [--clean-all] [--tag TAG]
 ```
 
 | Flag | Description |
 |---|---|
 | `--config` | Path to config file (default: `config/config.yml`) |
-| `--clean` | Clean build directories before running |
+| `--clean` | Clean this pipeline's temp and result data before running |
+| `--clean-all` | Clean all pipeline directories before running |
 | `--tag` | Version tag; defaults to current date `YYYY-MM-DD` |
 
 ### `./build-valhalla-data`
@@ -234,13 +244,14 @@ Run the border data pipeline.
 Run the Valhalla routing data pipeline.
 
 ```
-./build-valhalla-data [--config CONFIG] [--clean] [--tag TAG]
+./build-valhalla-data [--config CONFIG] [--clean] [--clean-all] [--tag TAG]
 ```
 
 | Flag | Description |
 |---|---|
 | `--config` | Path to config file (default: `config/config.yml`) |
-| `--clean` | Clean build directories before running |
+| `--clean` | Clean this pipeline's temp and result data before running |
+| `--clean-all` | Clean all pipeline directories before running |
 | `--tag` | Version tag; defaults to current date `YYYY-MM-DD` |
 
 ### `./build-pelias-data`
@@ -248,21 +259,24 @@ Run the Valhalla routing data pipeline.
 Run the Pelias geocoding data pipeline.
 
 ```
-./build-pelias-data [--config CONFIG] [--clean] [--tag TAG]
+./build-pelias-data [--config CONFIG] [--clean] [--clean-all] [--tag TAG]
+               [--snapshot-only]
 ```
 
 | Flag | Description |
 |---|---|
 | `--config` | Path to config file (default: `config/config.yml`) |
-| `--clean` | Clean build directories before running |
+| `--clean` | Clean this pipeline's temp and result data before running |
+| `--clean-all` | Clean all pipeline directories before running |
 | `--tag` | Version tag; defaults to current date `YYYY-MM-DD` |
+| `--snapshot-only` | Skip data import; start ES with existing data and run snapshot+export only |
 
 ### `./build-tiles`
 
 Run the tiles pipeline.
 
 ```
-./build-tiles [--config CONFIG] [--clean] [--tag TAG]
+./build-tiles [--config CONFIG] [--clean] [--clean-all] [--tag TAG]
               [--skip-download] [--skip-build] [--upload]
               [--no-parallel] [--gen-tile TILE_ID]
               [--with-service-roads]
@@ -271,7 +285,8 @@ Run the tiles pipeline.
 | Flag | Description |
 |---|---|
 | `--config` | Path to config file (default: `config/config.yml`) |
-| `--clean` | Clean build directories before running |
+| `--clean` | Clean this pipeline's temp and result data before running |
+| `--clean-all` | Clean all pipeline directories before running |
 | `--tag` | Version tag; defaults to current date `YYYY-MM-DD` |
 | `--skip-download` | Skip downloading OSM/Natural Earth data |
 | `--skip-build` | Skip building tiles |
@@ -340,7 +355,7 @@ Source: OSM (osmium export + land-polygons shapefile)
 | `land` | polygon | — | OSM land-polygons clipped to tile; small polygons (< 0.0008°²) filtered |
 | `water` | polygon | `natural`, `landuse` | OSM water areas; filtered by area (< 0.0008°²), bbox and connectivity; tippecanoe minzoom=7 |
 | `urban` | polygon | — | Raw OSM `landuse=residential/commercial/industrial` polygons exported via osmium; simplified (0.0015°) |
-| `forest` | polygon | `natural`, `landuse` | OSM woodland/forest; filtered by area (< 0.001°²) and Polsby-Popper compactness (< 0.05); simplified (0.0015°) |
+| `forest` | polygon | `natural`, `landuse` | OSM woodland/forest; filtered by area (< 0.0002°²) and Polsby-Popper compactness (< 0.05); simplified (0.0015°) |
 | `roads` | linestring | `highway`, `name`, `ref`, `minzoom`, `tunnel`, `bridge`, `motorway_link_type`, `route` | Simplified (0.0007°) |
 | `railways` | linestring | `railway`, `name`, `minzoom` | Simplified (0.0007°) |
 | `ferries` | linestring | `route`, `minzoom` | Simplified (0.0007°) |
@@ -356,7 +371,7 @@ Source: OSM (osmium export + land-polygons shapefile)
 | `land` | polygon | — | OSM land-polygons clipped to tile |
 | `water` | polygon | `natural`, `landuse` | OSM water areas; filtered by area (< 0.00008°²); tippecanoe minzoom=11; simplified (0.0001°) |
 | `urban` | polygon | — | Raw OSM `landuse=residential/commercial/industrial` polygons exported via osmium; simplified (0.0001°) |
-| `forest` | polygon | `natural`, `landuse` | OSM woodland/forest; filtered by area (< 0.0001°²) and Polsby-Popper compactness (< 0.03); tippecanoe minzoom=11; simplified (0.0001°) |
+| `forest` | polygon | `natural`, `landuse` | OSM woodland/forest; filtered by area (< 0.00002°²) and Polsby-Popper compactness (< 0.03); tippecanoe minzoom=11; simplified (0.0001°) |
 | `roads` | linestring | `highway`, `name`, `ref`, `minzoom`, `tunnel`, `bridge`, `motorway_link_type`, `route` | No simplification |
 | `railways` | linestring | `railway`, `name`, `minzoom` | No simplification |
 | `ferries` | linestring | `route`, `minzoom` | No simplification |
@@ -439,7 +454,7 @@ tippecanoe to include the feature from the specified zoom level onwards.
 
 ### Forest polygon filtering
 
-Forest polygons (L1 and L2) are filtered by combined area and Polsby-Popper compactness before simplification (STEP 2.3 in `process_single_tile()`). This removes sub-pixel woodland fragments and narrow elongated strips (road-side tree rows, hedgerow remnants) that are invisible at the target zoom but inflate tile size.
+Forest polygons (L1 and L2) are filtered by combined area and Polsby-Popper compactness before simplification. This removes sub-pixel woodland fragments and narrow elongated strips (road-side tree rows, hedgerow remnants) that are invisible at the target zoom but inflate tile size.
 
 **Polsby-Popper score** = 4π × area / perimeter²  (0–1, where 1 = perfect circle).
 
@@ -447,8 +462,8 @@ Perimeter is computed via `ST_Length(ST_Boundary(geometry))` — portable across
 
 | Level | Area threshold | Compactness threshold | Rationale |
 |---|---|---|---|
-| L1 | 0.001°² (~100 km²) | 0.05 (≈ 1:50 aspect ratio) | Removes tiny woodland patches invisible at Z7–10 |
-| L2 | 0.0001°² (~10 km²) | 0.03 (≈ 1:100 aspect ratio) | Removes sub-km² fragments and narrow strips at Z11–16 |
+| L1 | 0.0002°² (~2.5 km²) | 0.05 (≈ 1:50 aspect ratio) | Removes tiny woodland patches invisible at Z7–10 |
+| L2 | 0.00002°² (~0.25 km²) | 0.03 (≈ 1:100 aspect ratio) | Removes sub-km² fragments and narrow strips at Z11–16 |
 
 A polygon passes the filter only if it satisfies **both** thresholds. Large, compact forest areas are always retained; only fragments and strips are dropped.
 
@@ -459,15 +474,14 @@ A polygon passes the filter only if it satisfies **both** thresholds. Large, com
 | Road-side tree row (1:200 strip) | ~0.01 | Removed |
 | Tiny woodland fragment < 0.05 km² | any | Removed |
 
-Filtering runs on unsimplified geometry (before STEP 3), so area and shape measurements are accurate.
+Filtering runs on unsimplified geometry, so area and shape measurements are accurate.
 
-**Stage 2 — tippecanoe minzoom hints** (STEP 2.4, applied after Stage 1):
+**Stage 2 — tippecanoe minzoom hints** (applied after area/compactness filter):
 
 Every surviving forest feature receives a `tippecanoe` object with a `minzoom` key. This mirrors the water minzoom mechanism and prevents tippecanoe from silently dropping forest polygons at tile boundaries due to per-tile size limits. Without this hint, a tile covering a dense 10° cell fits within tippecanoe's byte/feature budget, but the subtiles at the next zoom may each exceed it independently — causing forest to appear at one zoom and disappear at the next (pop-out).
 
 | Level | `tippecanoe.minzoom` |
 |---|---|
-| L1 | 7 |
 | L2 | 11 |
 
 ### Highway label extraction
@@ -563,9 +577,9 @@ with zoom for all three layers.
 
 **L1 and L2** use a raw osmium export: `urban.pbf → urban.geojson` via `osmium export` with
 `config/osmium-export-urban.json`. The export selects polygon and multipolygon geometries with
-`landuse=residential`, `landuse=commercial`, or `landuse=industrial`. No post-processing is
-applied; the raw OSM polygons are written directly to `urban.geojson` and then simplified
-with the rest of the layer stack.
+`landuse=residential`, `landuse=commercial`, or `landuse=industrial`. Urban polygons are then
+post-processed in Step 3 (after highway label extraction) by converting MultiPolygon geometries
+to individual Polygon features — this ensures each urban area renders as a single feature.
 
 No `landuse` attribute is preserved in the output. All urban areas render as a single class;
 map styles must not filter the urban layer by `landuse`.
