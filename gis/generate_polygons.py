@@ -150,8 +150,8 @@ def main():
 
     print("\n--- Border polygons (intersection of 10 km buffers) ---")
     for br in cfg.get("border-regions", []):
-        name = br["name"]
-        r1, r2 = br["regions"]
+        r1, r2 = br
+        name = f"{r1}_{r2}"
 
         if r1 not in region_geoms or r2 not in region_geoms:
             warnings.warn(f"Border '{name}': missing geometry for '{r1}' or '{r2}' — skipped")
@@ -166,7 +166,7 @@ def main():
             continue
 
         zone = fill_holes(zone)
-        fname = br["region-poly"]
+        fname = f"br_{name}.poly"
         write_poly(os.path.join(border_out, fname), name, zone)
 
     print("\nDone.")

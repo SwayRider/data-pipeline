@@ -1,0 +1,325 @@
+# Mini dev environment — benelux, france, germany only
+#
+# Parallelisation
+max_workers: 2
+#
+# source data paths
+source_paths:
+  config: ./config
+  border_polygons: ./gis/export/borders
+  overlap_polygons: ./gis/export/overlap
+
+# build paths — configure these for your server before running the pipeline
+build_paths:
+  download_dir: /path/to/pipeline/download
+  temp_dir: /path/to/pipeline/tmp
+  tools_dir: /path/to/pipeline/tools
+  result_dir: /path/to/pipeline/result
+
+# Download locations for public data
+download_urls:
+  osm: "https://download.geofabrik.de/"
+  srtm: "s3://elevation-tiles-prod/skadi/"
+  natural-earth: "https://naturalearth.s3.amazonaws.com/"
+  osm-land-polygons: "https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip"
+
+output:
+  geodata_dir: /path/to/geodata
+
+# Valhalla setup details
+valhalla:
+  repo_base: https://github.com/valhalla
+  repos:
+    - valhalla:latest:
+        git-submodule-update: true
+        cmake-build: true
+        cmake-opts:
+          - -DENABLE_PYTHON_BINDINGS=OFF
+          - -DENABLE_SERVICES=OFF
+          - -DENABLE_BENCHMARKS=OFF
+          - -DENABLE_TESTS=OFF
+          - -DCMAKE_CXX_FLAGS="-Wno-error=format-truncation"
+          - -DCMAKE_POLICY_DEFAULT_CMP0144=OLD
+          - -DSQLite3_INCLUDE_DIR=/opt/homebrew/opt/sqlite3/include
+          - -DSQLite3_LIBRARY=/opt/homebrew/opt/sqlite3/lib/libsqlite3.dylib
+          - -DSQLITE_ENABLE_LOAD_EXTENSION=ON
+          - -DSQLITE_ROOT_DIR=/opt/homebrew/opt/sqlite3
+          - -DProtobuf_ROOT=/opt/homebrew/Cellar/protobuf/33.4_1
+          - -DProtobuf_INCLUDE_DIR=/opt/homebrew/Cellar/protobuf/33.4_1/include
+          - -DProtobuf_LIBRARY=/opt/homebrew/Cellar/protobuf/33.4_1/lib/libprotobuf.dylib
+          - -DBOOST_ROOT=/opt/homebrew/opt/boost
+          - -DABSL_ROOT=/opt/homebrew/opt/abseil
+        make-build: true
+        make-opts:
+          - all
+          - -j4
+
+# Definition of the pelias setup we will do
+pelias:
+  repo_base: https://github.com/pelias
+  repos:
+    - schema:latest:
+        npm-intstall: true
+    - whosonfirst:latest:
+        npm-install: true
+    - geonames:latest:
+        npm-install: true
+    - openaddresses:latest:
+        npm-install: true
+    - openstreetmap:latest:
+        npm-install: true
+    - polylines:latest:
+        npm-install: true
+    - csv:latest:
+        npm-install: true
+    - transit:v1.0.0:
+        npm-install: true
+  config: pelias-load.json
+  config_prod: pelias-prod.json
+  placeholder_url: https://data.geocode.earth/placeholder/2021-08-01/store.sqlite3.gz
+  es_local_port: 39200
+  es_host_prod: sw-dev-elasticsearch
+  es_port_prod: 9200
+  snapshot_repo_path: /usr/share/elasticsearch/snapshots
+  snapshot_repo_name: pelias_repo
+  elastic:
+    version: 7.17.28
+    api_version: 7.x
+    host: localhost
+    port: 39200
+
+# definition of extra tools to build
+tippecanoe:
+  repo_base: https://github.com/felt
+  repos:
+    - tippecanoe:latest:
+        make-build: true
+
+# GDAL
+osgeo:
+  repo_base: https://github.com/OSGeo
+  repos:
+    - gdal:latest:
+        cmake-build: true
+        cmake-compile: true
+        cmake-opts:
+          - -DCMAKE_PREFIX_PATH=/opt/homebrew
+          - -DGDAL_USE_AVIF=OFF
+          - -DGDAL_ENABLE_DRIVER_AVIF=OFF
+
+# Natural Earth files
+natural_earth:
+  - 10m_physical/ne_10m_land.zip
+  - 10m_physical/ne_10m_ocean.zip
+  - 10m_cultural/ne_10m_admin_0_countries.zip
+  - 10m_cultural/ne_10m_urban_areas.zip
+  - 10m_cultural/ne_10m_roads.zip
+
+# Full size of the known region
+region_size:
+  min_lat: 40
+  max_lat: 60
+  min_lon: -10
+  max_lon: 20
+
+# Size of a tile
+tile_size: 10
+
+# Definitions of the regions we need to build the tileserver data
+tile_regions:
+  - europe
+
+# Definitions of the regions we need to build
+#
+# OSM Interface:
+#   https://download.geofabrik.de/
+#
+# WOS interface for determining country codes:
+#   https://geocode.earth/data/whosonfirst#AD
+#
+# OpenAddress interface:
+#   https://github.com/openaddresses/openaddresses/tree/master/data
+regions:
+  - benelux:
+      gtfs_feeds:
+        - https://gtfs.irail.be/nmbs/feed/gtfs.zip
+        - https://opendata.delijn.be/gtfs/google_transit.zip
+        - https://gtfs.ovapi.nl/nl/gtfs-nl.zip
+      core:
+        osm:
+          - europe/belgium
+          - europe/luxembourg
+          - europe/netherlands
+        wof:
+          - be
+          - lu
+          - nl
+        openaddresses:
+          - be/bru/bosa-region-brussels-fr.csv
+          - be/bru/bosa-region-brussels-nl.csv
+          - be/vlg/bosa-region-flanders-fr.csv
+          - be/vlg/bosa-region-flanders-nl.csv
+          - be/wal/bosa-region-wallonia-de.csv
+          - be/wal/bosa-region-wallonia-fr.csv
+          - lu/countrywide.csv
+          - nl/countrywide.csv
+      overlap:
+        osm:
+          - europe/france
+          - europe/germany
+        wof:
+          - fr
+          - de
+        openaddresses:
+          - fr/countrywide.csv
+          - de/bb/statewide.csv
+          - de/bw/statewide.csv
+          - de/hb/statewide.csv
+          - de/he/statewide.csv
+          - de/hh/statewide.csv
+          - de/nw/statewide.csv
+          - de/rp/statewide.csv
+          - de/sh/statewide.csv
+          - de/sl/statewide.csv
+          - de/sn/statewide.csv
+          - de/st/statewide.csv
+          - de/th/statewide.csv
+          - de/ni/statewide.csv
+          - de/mv/statewide.csv
+          - de/berlin.csv
+          - de/by/region_lower_bavaria.csv
+          - de/by/region_lower_franconia.csv
+          - de/by/region_middle_franconia.csv
+          - de/by/region_swabia.csv
+          - de/by/region_upper_bavaria.csv
+          - de/by/region_upper_franconia.csv
+          - de/by/region_upper_palatinate.csv
+      srtm:
+        - belgium: [ 49, 52, 2, 7 ]
+        - france: [ 41, 52, -5, 10 ]
+        - germany: [ 47, 51, 5, 16 ]
+        - luxembourg: [ 49, 51, 5, 7 ]
+        - netherlands: [ 50, 54, 3, 8 ]
+
+  - france:
+      core:
+        osm:
+          - europe/france
+          - europe/monaco
+        wof:
+          - fr
+          - mc
+        openaddresses:
+          - fr/countrywide.csv
+      overlap:
+        osm:
+          - europe/belgium
+          - europe/germany
+          - europe/luxembourg
+          - europe/netherlands
+        wof:
+          - be
+          - de
+          - lu
+          - nl
+        openaddresses:
+          - be/bru/bosa-region-brussels-fr.csv
+          - be/bru/bosa-region-brussels-nl.csv
+          - be/vlg/bosa-region-flanders-fr.csv
+          - be/vlg/bosa-region-flanders-nl.csv
+          - be/wal/bosa-region-wallonia-de.csv
+          - be/wal/bosa-region-wallonia-fr.csv
+          - de/bb/statewide.csv
+          - de/bw/statewide.csv
+          - de/hb/statewide.csv
+          - de/he/statewide.csv
+          - de/hh/statewide.csv
+          - de/nw/statewide.csv
+          - de/rp/statewide.csv
+          - de/sh/statewide.csv
+          - de/sl/statewide.csv
+          - de/sn/statewide.csv
+          - de/st/statewide.csv
+          - de/th/statewide.csv
+          - de/ni/statewide.csv
+          - de/mv/statewide.csv
+          - de/berlin.csv
+          - de/by/region_lower_bavaria.csv
+          - de/by/region_lower_franconia.csv
+          - de/by/region_middle_franconia.csv
+          - de/by/region_swabia.csv
+          - de/by/region_upper_bavaria.csv
+          - de/by/region_upper_franconia.csv
+          - de/by/region_upper_palatinate.csv
+          - lu/countrywide.csv
+          - nl/countrywide.csv
+      srtm:
+        - belgium: [ 49, 52, 2, 7 ]
+        - france: [ 41, 52, -5, 10 ]
+        - germany: [ 47, 51, 5, 16 ]
+        - luxembourg: [ 49, 51, 5, 7 ]
+        - monaco: [ 43, 44, 7, 8 ]
+        - netherlands: [ 50, 54, 3, 8 ]
+
+  - germany:
+      core:
+        osm:
+          - europe/germany
+        wof:
+          - de
+        openaddresses:
+          - de/bb/statewide.csv
+          - de/bw/statewide.csv
+          - de/hb/statewide.csv
+          - de/he/statewide.csv
+          - de/hh/statewide.csv
+          - de/nw/statewide.csv
+          - de/rp/statewide.csv
+          - de/sh/statewide.csv
+          - de/sl/statewide.csv
+          - de/sn/statewide.csv
+          - de/st/statewide.csv
+          - de/th/statewide.csv
+          - de/ni/statewide.csv
+          - de/mv/statewide.csv
+          - de/berlin.csv
+          - de/by/region_lower_bavaria.csv
+          - de/by/region_lower_franconia.csv
+          - de/by/region_middle_franconia.csv
+          - de/by/region_swabia.csv
+          - de/by/region_upper_bavaria.csv
+          - de/by/region_upper_franconia.csv
+          - de/by/region_upper_palatinate.csv
+      overlap:
+        osm:
+          - europe/belgium
+          - europe/france
+          - europe/luxembourg
+          - europe/netherlands
+        wof:
+          - be
+          - fr
+          - lu
+          - nl
+        openaddresses:
+          - be/bru/bosa-region-brussels-fr.csv
+          - be/bru/bosa-region-brussels-nl.csv
+          - be/vlg/bosa-region-flanders-fr.csv
+          - be/vlg/bosa-region-flanders-nl.csv
+          - be/wal/bosa-region-wallonia-de.csv
+          - be/wal/bosa-region-wallonia-fr.csv
+          - fr/countrywide.csv
+          - lu/countrywide.csv
+          - nl/countrywide.csv
+      srtm:
+        - belgium: [ 49, 52, 2, 7 ]
+        - france: [ 41, 52, -5, 10 ]
+        - germany: [ 47, 51, 5, 16 ]
+        - luxembourg: [ 49, 51, 5, 7 ]
+        - netherlands: [ 50, 54, 3, 8 ]
+
+# Detection of border crossings
+border-regions:
+  - [ benelux, france ]
+  - [ benelux, germany ]
+  - [ france, germany ]

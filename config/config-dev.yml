@@ -953,53 +953,13 @@ regions:
 
 # Detection of border crossings
 border-regions:
-  - name: baltics-russia_central-europe
-    region-poly: br_baltics-russia_central-europe.poly
-    regions:
-      - baltics-russia
-      - central-europe
-  - name: baltics-russia_scandinavia
-    region-poly: br_baltics-russia_scandinavia.poly
-    regions:
-      - baltics-russia
-      - scandinavia
-  - name: baltics-russia_south-eastern-europe
-    region-poly: br_baltics-russia_south-eastern-europe.poly
-    regions:
-      - baltics-russia
-      - south-eastern-europe
-  - name: central-europe_south-eastern-europe
-    region-poly: br_central-europe_south-eastern-europe.poly
-    regions:
-      - central-europe
-      - south-eastern-europe
-  - name: central-europe_south-europe
-    region-poly: br_central-europe_south-europe.poly
-    regions:
-      - central-europe
-      - south-europe
-  - name: central-europe_west-europe
-    region-poly: br_central-europe_west-europe.poly
-    regions:
-      - central-europe
-      - west-europe
-  - name: iberian-peninsula_west-europe
-    region-poly: br_iberian-peninsula_west-europe.poly
-    regions:
-      - iberian-peninsula
-      - west-europe
-  - name: scandinavia_west-europe
-    region-poly: br_scandinavia_west-europe.poly
-    regions:
-      - scandinavia
-      - west-europe
-  - name: south-eastern-europe_south-europe
-    region-poly: br_south-eastern-europe_south-europe.poly
-    regions:
-      - south-eastern-europe
-      - south-europe
-  - name: south-europe_west-europe
-    region-poly: br_south-europe_west-europe.poly
-    regions:
-      - south-europe
-      - west-europe
+  - [ baltics-russia, central-europe ]
+  - [ baltics-russia, scandinavia ]
+  - [ baltics-russia, south-eastern-europe ]
+  - [ central-europe, south-eastern-europe ]
+  - [ central-europe, south-europe ]
+  - [ central-europe, west-europe ]
+  - [ iberian-peninsula, west-europe ]
+  - [ scandinavia, west-europe ]
+  - [ south-eastern-europe, south-europe ]
+  - [ south-europe, west-europe ]
