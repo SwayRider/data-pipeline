@@ -56,7 +56,8 @@ def create_pelias_config(
         open_addresses_files: list[str],
         wof_country_codes: list[str],
         overture_data_path: str = None,
-        gtfs_data_path: str = None) -> bool:
+        gtfs_data_path: str = None,
+        polylines_data_path: str = None) -> bool:
     config_file_path = os.path.join(build_path, "pelias.json")
     prod_config_file_path = os.path.join(result_path, "pelias.json")
     data_path = os.path.join(build_path, "data")
@@ -82,6 +83,9 @@ def create_pelias_config(
         gtfs_data_path = os.path.join(data_path, "gtfs", region_name)
     os.makedirs(gtfs_data_path, exist_ok=True)
 
+    if polylines_data_path is None:
+        polylines_data_path = os.path.join(result_base_path, "valhalla", region_name)
+
     template_data = {
             "es_api_version": pelias_config.elasticsearch_api_version(),
             "es_host": pelias_config.elasticsearch_host(),
@@ -93,6 +97,7 @@ def create_pelias_config(
             "openaddresses_files": json.dumps(open_addresses_files),
             "openstreetmap_data_path": openstreetmap_data_path,
             "openstreetmap_file_name": f"{region_name}.osm.pbf",
+            "polylines_data_path": polylines_data_path,
             "wof_data_path": wof_data_path,
             "wof_country_codes": json.dumps(wof_country_codes),
             "overture_data_path": overture_data_path,

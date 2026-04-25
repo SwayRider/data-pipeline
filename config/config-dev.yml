@@ -37,17 +37,9 @@ valhalla:
           - -DENABLE_SERVICES=OFF
           - -DENABLE_BENCHMARKS=OFF
           - -DENABLE_TESTS=OFF
-          - -DCMAKE_CXX_FLAGS="-Wno-error=format-truncation"
+          - -DCMAKE_CXX_FLAGS=-Wno-error=format-truncation -Wno-error=deprecated-declarations
           - -DCMAKE_POLICY_DEFAULT_CMP0144=OLD
-          - -DSQLite3_INCLUDE_DIR=/opt/homebrew/opt/sqlite3/include
-          - -DSQLite3_LIBRARY=/opt/homebrew/opt/sqlite3/lib/libsqlite3.dylib
           - -DSQLITE_ENABLE_LOAD_EXTENSION=ON
-          - -DSQLITE_ROOT_DIR=/opt/homebrew/opt/sqlite3
-          - -DProtobuf_ROOT=/opt/homebrew/Cellar/protobuf/33.4_1
-          - -DProtobuf_INCLUDE_DIR=/opt/homebrew/Cellar/protobuf/33.4_1/include
-          - -DProtobuf_LIBRARY=/opt/homebrew/Cellar/protobuf/33.4_1/lib/libprotobuf.dylib
-          - -DBOOST_ROOT=/opt/homebrew/opt/boost
-          - -DABSL_ROOT=/opt/homebrew/opt/abseil
         make-build: true
         make-opts:
           - all
@@ -69,9 +61,9 @@ pelias:
         npm-install: true
     - polylines:latest:
         npm-install: true
-    - csv:latest:
+    - csv-importer:latest:
         npm-install: true
-    - transit:v1.0.0:
+    - transit:latest:
         npm-install: true
   config: pelias-load.json
   config_prod: pelias-prod.json
@@ -102,7 +94,6 @@ osgeo:
         cmake-build: true
         cmake-compile: true
         cmake-opts:
-          - -DCMAKE_PREFIX_PATH=/opt/homebrew
           - -DGDAL_USE_AVIF=OFF
           - -DGDAL_ENABLE_DRIVER_AVIF=OFF
 
@@ -461,8 +452,9 @@ regions:
         - united-kingdom: [ 49, 61, -9, 2 ]
 
   - scandinavia:
-      gtfs_feeds:
-        - https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs.zip
+      # TODO: re-enable gtfs_feeds when reliable data sources are confirmed
+      # gtfs_feeds:
+      #   - https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs.zip
       core:
         osm:
           - europe/denmark
@@ -810,10 +802,11 @@ regions:
         - united-kingdom: [ 49, 61, -9, 2 ]
 
   - west-europe:
-      gtfs_feeds:
-        - https://gtfs.irail.be/nmbs/feed/gtfs.zip
-        - https://opendata.delijn.be/gtfs/google_transit.zip
-        - https://gtfs.ovapi.nl/nl/gtfs-nl.zip
+      # TODO: re-enable gtfs_feeds when reliable data sources are confirmed
+      # gtfs_feeds:
+      #   - https://gtfs.irail.be/nmbs/feed/gtfs.zip
+      #   - https://opendata.delijn.be/gtfs/google_transit.zip
+      #   - https://gtfs.ovapi.nl/nl/gtfs-nl.zip
       core:
         osm:
           - europe/belgium

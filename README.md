@@ -44,14 +44,15 @@ in separate manifest files so they can run and be re-run independently.
 
 ```
 prepare-source-data  ──┬──▶  build-border-data
-                       ├──▶  build-valhalla-data
-                       └──▶  build-pelias-data
+                       └──▶  build-valhalla-data  ──▶  build-pelias-data
 
 build-tiles  (independent)
 ```
 
-`build-border-data`, `build-valhalla-data`, and `build-pelias-data` each verify that the
-required OSM output files from `prepare-source-data` are present before starting. Run `prepare-source-data` first.
+`build-border-data` and `build-valhalla-data` verify that OSM output from `prepare-source-data`
+is present before starting. `build-pelias-data` additionally requires `build-valhalla-data` to
+have completed first: it reads the per-region `polylines.0sv.gz` files exported from the Valhalla
+graph to import street-name data into Pelias.
 
 ### Recommended execution order
 
@@ -59,12 +60,14 @@ required OSM output files from `prepare-source-data` are present before starting
 # Step 1 — always first
 ./prepare-source-data --config config/config.yml --tag 2026-03-09
 
-# Step 2 — these three can run in parallel or in any order
+# Step 2 — border and valhalla can run in parallel
 ./build-border-data   --config config/config.yml --tag 2026-03-09
 ./build-valhalla-data --config config/config.yml --tag 2026-03-09
+
+# Step 3 — requires valhalla to be complete
 ./build-pelias-data   --config config/config.yml --tag 2026-03-09
 
-# Step 3 — independent, can run at any time
+# Independent — can run at any time
 ./build-tiles --config config/config.yml --tag 2026-03-09
 ```
 
@@ -169,10 +172,11 @@ Requires: OSM output from `prepare-source-data`. Produces Valhalla routing graph
 
 ### Pelias Geocoding Data Pipeline
 
-Requires: OSM output from `prepare-source-data`. Produces Pelias geocoding data.
+Requires: OSM output from `prepare-source-data` **and** Valhalla output from `build-valhalla-data`
+(specifically the per-region `polylines.0sv.gz` files used for street-name import).
 
 **Output files:**
-- Pelias geocoding data (schema, WhoIsOnFirst, OpenAddresses, OSM, Geonames)
+- Pelias geocoding data (schema, WhoIsOnFirst, OpenAddresses, OSM, Geonames, polylines)
 - `pelias.tar.bz2` archive
 
 **Pipeline steps:**
@@ -180,7 +184,7 @@ Requires: OSM output from `prepare-source-data`. Produces Pelias geocoding data.
 1. Install Pelias npm tools (latest releases, cached after first run)
 2. Verify prerequisites (OSM files from prepare-source-data)
 3. Download Pelias placeholder data
-4. Build Pelias data (schema → import WOF → import addresses → import OSM)
+4. Build Pelias data (schema → import WOF → import addresses → import OSM → import polylines)
 5. Package to `pelias.tar.bz2`
 
 ### Tiles Pipeline
@@ -300,34 +304,38 @@ Run the tiles pipeline.
 
 ### `./publish`
 
-Publish already-built artifacts to the geodata output directory.
+Move all completed pipeline archives to the geodata output directory.
 
 ```
-./publish [--config CONFIG] [--manifest FILENAME]
+./publish [--config CONFIG]
 ```
 
 | Flag | Description |
 |---|---|
 | `--config` | Path to config file (default: `config/config.yml`) |
-| `--manifest` | Manifest file to publish (default: `manifest-data.yml`) |
+
+Each pipeline that has completed (its manifest is closed) has its archive(s) moved from
+`result_dir/` to `{geodata_dir}/{tag}/`. Pipelines whose manifest is missing or not yet
+completed are skipped. Archives moved per pipeline:
+
+| Pipeline | Archive(s) |
+|---|---|
+| `prepare-source-data` | `osm.tar.bz2` |
+| `build-border-data` | `border.tar.bz2` |
+| `build-valhalla-data` | `valhalla.tar.bz2` |
+| `build-pelias-data` | `pelias-es-snapshot.tar.bz2`, `pelias-data.tar.bz2` |
+| `build-tiles` | `tiles.tar` |
 
 ### Publish examples
 
 ```bash
-# Build and publish source data
+# Run all pipelines, then publish everything at once
 ./prepare-source-data --config config/config.yml --tag 2026-03-09
-./publish             --config config/config.yml --manifest manifest-osm.yml
-
-# Build and publish border data
-./build-border-data --config config/config.yml --tag 2026-03-09
-./publish           --config config/config.yml --manifest manifest-border.yml
-
-# Build and publish tiles
-./build-tiles --config config/config.yml --tag 2026-03-09
-./publish     --config config/config.yml --manifest manifest-tiles.yml
-
-# Publish only tiles (without rebuilding)
-./publish --config config/config.yml --manifest manifest-tiles.yml
+./build-border-data   --config config/config.yml --tag 2026-03-09
+./build-valhalla-data --config config/config.yml --tag 2026-03-09
+./build-pelias-data   --config config/config.yml --tag 2026-03-09
+./build-tiles         --config config/config.yml --tag 2026-03-09
+./publish             --config config/config.yml
 ```
 
 ---
@@ -624,11 +632,13 @@ result_dir/
 │   └── {region}/
 │       ├── tiles.tar
 │       ├── admin.sqlite
-│       └── tz_world.sqlite
+│       ├── tz_world.sqlite
+│       └── polylines.0sv.gz       # valhalla_export_edges output; consumed by build-pelias-data
 ├── pelias/
 │   ├── placeholder/
 │   ├── config/{region}/pelias.json
 │   └── wof/{region}/
+├── es-snapshots/                  # Elasticsearch snapshot repository
 ├── tiles/
 │   ├── L0.mbtiles
 │   ├── L1/{TILE}.mbtiles
@@ -636,7 +646,8 @@ result_dir/
 ├── osm.tar.bz2
 ├── border.tar.bz2
 ├── valhalla.tar.bz2
-├── pelias.tar.bz2
+├── pelias-es-snapshot.tar.bz2
+├── pelias-data.tar.bz2
 └── tiles.tar
 ```
 
@@ -644,22 +655,13 @@ Output paths (after `./publish`):
 
 ```
 geodata/
-├── data/{tag}/
-│   ├── osm/{region}.osm.pbf
-│   ├── borders/{region}-core.geojson
-│   ├── borders/{region}-extended.geojson
-│   ├── border-crossings/{border-pair}.csv
-│   ├── valhalla/{region}/tiles.tar
-│   ├── pelias/placeholder/{file}
-│   ├── pelias/config/{region}/pelias.json
-│   ├── pelias/wof/{region}/{file}
-│   ├── manifest-osm.yml
-│   ├── manifest-border.yml
-│   ├── manifest-valhalla.yml
-│   └── manifest-pelias.yml
-└── tiles/{tag}/
-    ├── tiles.tar
-    └── manifest-tiles.yml
+└── {tag}/
+    ├── osm.tar.bz2
+    ├── border.tar.bz2
+    ├── valhalla.tar.bz2
+    ├── pelias-es-snapshot.tar.bz2
+    ├── pelias-data.tar.bz2
+    └── tiles.tar
 ```
 
 ---

@@ -341,6 +341,8 @@ def extract_polygon(
     output_file = os.path.join(destination_path, destination_file)
     poly_file = os.path.join(polygon_path, polygon_file)
 
+    os.makedirs(destination_path, exist_ok=True)
+
     if os.path.exists(output_file):
         print(f"File '{destination_file}' already exists. Skipping extract.")
         return True
@@ -514,7 +516,7 @@ def outline(
     cmd = "osmium export"
     cmd += f" \"{temp_file}\""
     cmd += f" -o \"{temp_file_2}\""
-    cmd += " --geometry-types=multipolygon"
+    cmd += " --geometry-types=multipolygon --overwrite"
 
     try:
         subprocess.run(cmd, shell=True, check=True)
@@ -525,7 +527,7 @@ def outline(
 
     gdf = gpd.read_file(temp_file_2)
     merged = unary_union(gdf.geometry)
-    polygons = list(merged.geoms)
+    polygons = list(merged.geoms) if hasattr(merged, "geoms") else [merged]
     out = gpd.GeoDataFrame(geometry=polygons, crs="EPSG:4326")
     out.to_file(output_file, driver="GeoJSON")
 

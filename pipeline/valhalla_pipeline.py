@@ -1,6 +1,6 @@
 from .base_pipeline import BasePipeline
 from .valhalla_funcs import cleanup_valhalla_data, create_valhalla_config
-from .valhalla_funcs import build_valhalla_tiles
+from .valhalla_funcs import build_valhalla_tiles, export_valhalla_edges
 import os
 import shutil
 
@@ -66,7 +66,16 @@ class ValhallaDataPipeline(BasePipeline):
             print(f"  - {region.name}")
 
             if self.manifest.valhalla_data_exists(region.name):
-                print("    Skipping, already exists")
+                print("    Skipping tiles, already exists")
+                print("    Exporting polylines (for pelias)")
+                res = export_valhalla_edges(
+                        region.name,
+                        tools_path,
+                        build_path,
+                        srtm_path,
+                        self.config.result_dir())
+                if not res:
+                    return False
                 continue
 
             print("    Cleaning old data")
@@ -105,5 +114,14 @@ class ValhallaDataPipeline(BasePipeline):
                     "tz_world.sqlite",
                     "tiles.tar")
             self.manifest.save()
+
+            print("    Exporting polylines (for pelias)")
+            res = export_valhalla_edges(
+                    region.name,
+                    tools_path,
+                    build_path,
+                    self.config.result_dir())
+            if not res:
+                return False
 
         return True

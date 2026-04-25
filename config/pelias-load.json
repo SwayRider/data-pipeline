@@ -127,8 +127,8 @@
       "files": ${openaddresses_files}
     },
     "polyline": {
-      "datapath": "${openstreetmap_data_path}",
-      "files": ["${openstreetmap_file_name}"]
+      "datapath": "${polylines_data_path}",
+      "files": ["polylines.0sv.gz"]
     },
     "whosonfirst": {
       "datapath": "${wof_data_path}",

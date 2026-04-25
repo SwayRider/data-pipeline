@@ -4,47 +4,46 @@ from .config import Config
 from .manifest import Manifest
 
 
+MANIFEST_ARCHIVES = [
+    ("manifest-osm.yml",      ["osm.tar.bz2"]),
+    ("manifest-border.yml",   ["border.tar.bz2"]),
+    ("manifest-valhalla.yml", ["valhalla.tar.bz2"]),
+    ("manifest-pelias.yml",   ["pelias-es-snapshot.tar.bz2", "pelias-data.tar.bz2"]),
+    ("manifest-tiles.yml",    ["tiles.tar"]),
+]
+
+
 class Publish:
     def __init__(self, args):
         self.args = args
         self.config = Config(self.args.config)
-        manifest_file = getattr(self.args, 'manifest', 'manifest.yml')
-        self.manifest = Manifest(
-            path=str(self.config.result_dir()),
-            filename=manifest_file)
-        self.manifest.load(str(self.config.result_dir()))
 
     def run(self) -> bool:
-        output_dir = self.config.geodata_output_dir()
-        tag = self.manifest.tag
+        result_dir = str(self.config.result_dir())
+        geodata_dir = self.config.geodata_output_dir()
 
-        # Copy contours
-        for region_name, region_data in self.manifest.regions.items():
-            if "contour" not in region_data:
+        for manifest_filename, archive_filenames in MANIFEST_ARCHIVES:
+            manifest_path = os.path.join(result_dir, manifest_filename)
+            if not os.path.exists(manifest_path):
+                print(f"Skipping {manifest_filename} (not found)")
                 continue
-            for kind in ("core", "extended"):
-                entry = region_data["contour"][kind]
-                src = entry["local-file"]
-                dst = os.path.join(output_dir, entry["remote-file"])
-                os.makedirs(os.path.dirname(dst), exist_ok=True)
-                shutil.copy2(src, dst)
+
+            manifest = Manifest(path=result_dir, filename=manifest_filename)
+            if not manifest.is_closed():
+                print(f"Skipping {manifest_filename} (pipeline not completed)")
+                continue
+
+            tag = manifest.tag
+            dest_dir = os.path.join(geodata_dir, tag)
+            os.makedirs(dest_dir, exist_ok=True)
+
+            for archive in archive_filenames:
+                src = os.path.join(result_dir, archive)
+                if not os.path.exists(src):
+                    print(f"Warning: archive not found: {src}")
+                    continue
+                dst = os.path.join(dest_dir, archive)
+                shutil.move(src, dst)
                 print(f" > {src} -> {dst}")
-
-        # Copy border crossings
-        for name, data in self.manifest.shared.get("border-crossings", {}).items():
-            src = data["local-file"]
-            dst = os.path.join(output_dir, data["remote-file"])
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copy2(src, dst)
-            print(f" > {src} -> {dst}")
-
-        # Write manifest.yml into the tag directory
-        tag_dir = os.path.join(output_dir, tag)
-        os.makedirs(tag_dir, exist_ok=True)
-        manifest_dst = os.path.join(tag_dir, "manifest.yml")
-        shutil.copy2(
-            os.path.join(self.manifest.path, self.manifest.filename),
-            manifest_dst)
-        print(f" > manifest -> {manifest_dst}")
 
         return True
