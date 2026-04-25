@@ -193,7 +193,7 @@ class PeliasDataPipeline(BasePipeline):
                     for region in self.config.regions()
                 ]
                 if not self._check_prerequisites(required_files):
-                    print("Prerequisites missing — run build-osm first")
+                    print("Prerequisites missing — run prepare-source-data first")
                     return False
 
                 if not self._create_pelias_data():

@@ -1,39 +1,29 @@
-#!/usr/bin/env python3
-"""
-Generate overlap and border .poly files from Natural Earth country boundaries.
-
-Usage:
-    python3 gis/generate_polygons.py \\
-        --config  config/config.yml \\
-        --ne-dir  /path/to/download/natural-earth
-
-Outputs:
-    gis/export/overlap/overlap_{region}.poly   — core region buffered 100 km
-    gis/export/borders/br_{A}_{B}.poly         — 10 km buffer of A ∩ 10 km buffer of B
-"""
-
-import argparse
 import os
 import sys
 import warnings
+from pathlib import Path
 
 import geopandas as gpd
-import yaml
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.ops import unary_union
 
 OVERLAP_BUFFER_M = 100_000  # 100 km
 BORDER_BUFFER_M = 10_000    # 10 km
-# EPSG:3857 gives metric distances; distortion at high latitudes is acceptable
-# for the approximate clip regions these polygons define.
 CRS_METRIC = "EPSG:3857"
 
 
-def load_ne_countries(ne_dir: str) -> dict:
-    shp = os.path.join(ne_dir, "ne_10m_admin_0_countries.shp")
-    if not os.path.exists(shp):
-        sys.exit(f"Natural Earth shapefile not found: {shp}")
-    gdf = gpd.read_file(shp)
+def load_ne_countries(ne_dir: str) -> dict | None:
+    zip_path = os.path.join(ne_dir, "ne_10m_admin_0_countries.zip")
+    shp_path = os.path.join(ne_dir, "ne_10m_admin_0_countries.shp")
+
+    if os.path.exists(zip_path):
+        path = zip_path
+    elif os.path.exists(shp_path):
+        path = shp_path
+    else:
+        return None
+
+    gdf = gpd.read_file(path)
     result = {}
     for _, row in gdf.iterrows():
         iso = str(row.get("ISO_A2", "") or "").strip().lower()
@@ -51,7 +41,6 @@ def fill_holes(geom):
 
 
 def only_polygons(geom):
-    """Drop non-polygon parts that can appear at intersection boundaries."""
     if geom.geom_type in ("Polygon", "MultiPolygon"):
         return geom
     if geom.geom_type == "GeometryCollection":
@@ -115,62 +104,52 @@ def build_core_geom(region_name: str, wof_codes: list, ne: dict):
     return fill_holes(unary_union(polys))
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--config", required=True, help="Path to config.yml")
-    ap.add_argument("--ne-dir", required=True,
-                    help="Directory containing ne_10m_admin_0_countries.shp")
-    args = ap.parse_args()
+def generate_polygons(cfg: dict, ne_dir: str) -> bool:
+    """Generate overlap and border .poly files from Natural Earth country boundaries.
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    overlap_out = os.path.join(script_dir, "export", "overlap")
-    border_out = os.path.join(script_dir, "export", "borders")
+    Writes to the gis_export dir defined in cfg['source_paths']['gis_export']:
+      {gis_export}/overlap/overlap_{region}.poly  — core region buffered 100 km
+      {gis_export}/borders/br_{A}_{B}.poly        — 10 km buffer of A ∩ 10 km buffer of B
+    """
+    gis_export = Path(cfg["source_paths"]["gis_export"])
+    overlap_out = gis_export / "overlap"
+    border_out = gis_export / "borders"
 
-    with open(args.config) as f:
-        cfg = yaml.safe_load(f)
-
-    ne = load_ne_countries(args.ne_dir)
-    print(f"Loaded {len(ne)} countries from Natural Earth\n")
+    ne = load_ne_countries(ne_dir)
+    if ne is None:
+        print(f"  Error: Natural Earth countries file not found in {ne_dir}")
+        return False
+    print(f"  Loaded {len(ne)} countries from Natural Earth")
 
     region_geoms = {}
 
-    print("--- Overlap polygons (100 km buffer per region) ---")
+    print("  Overlap polygons (100 km buffer per region)")
     for entry in cfg["regions"]:
         region_name = next(iter(entry))
         wof_codes = entry[region_name].get("core", {}).get("wof", [])
-
         core_geom = build_core_geom(region_name, wof_codes, ne)
         if core_geom is None:
             continue
         region_geoms[region_name] = core_geom
-
         buf = fill_holes(buffer_m(core_geom, OVERLAP_BUFFER_M))
         fname = f"overlap_{region_name}.poly"
-        write_poly(os.path.join(overlap_out, fname), fname[:-5], buf)
+        write_poly(str(overlap_out / fname), fname[:-5], buf)
 
-    print("\n--- Border polygons (intersection of 10 km buffers) ---")
+    print("  Border polygons (intersection of 10 km buffers)")
     for br in cfg.get("border-regions", []):
         r1, r2 = br
         name = f"{r1}_{r2}"
-
         if r1 not in region_geoms or r2 not in region_geoms:
-            warnings.warn(f"Border '{name}': missing geometry for '{r1}' or '{r2}' — skipped")
+            warnings.warn(f"  Border '{name}': missing geometry for '{r1}' or '{r2}' — skipped")
             continue
-
         buf1 = buffer_m(region_geoms[r1], BORDER_BUFFER_M)
         buf2 = buffer_m(region_geoms[r2], BORDER_BUFFER_M)
         zone = only_polygons(buf1.intersection(buf2))
-
         if zone.is_empty:
-            warnings.warn(f"Border '{name}': intersection is empty — skipped")
+            warnings.warn(f"  Border '{name}': intersection is empty — skipped")
             continue
-
         zone = fill_holes(zone)
         fname = f"br_{name}.poly"
-        write_poly(os.path.join(border_out, fname), name, zone)
+        write_poly(str(border_out / fname), name, zone)
 
-    print("\nDone.")
-
-
-if __name__ == "__main__":
-    main()
+    return True

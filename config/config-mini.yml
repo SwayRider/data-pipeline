@@ -3,28 +3,30 @@
 # Parallelisation
 max_workers: 2
 #
-# source data paths
+# Source data paths — config points into the repo; gis_export must be set to a
+# writable directory where generated polygon files (.poly) will be written.
 source_paths:
-  config: ./config
-  border_polygons: ./gis/export/borders
-  overlap_polygons: ./gis/export/overlap
+  config: ./config                          # repo-relative, no change needed
+  gis_export: /path/to/pipeline/gis/export  # ← set this
 
-# build paths — configure these for your server before running the pipeline
+# Build paths — all four must be set to writable directories on your server.
 build_paths:
-  download_dir: /path/to/pipeline/download
-  temp_dir: /path/to/pipeline/tmp
-  tools_dir: /path/to/pipeline/tools
-  result_dir: /path/to/pipeline/result
+  download_dir: /path/to/pipeline/download  # ← set this  (OSM PBFs, SRTM tiles, Natural Earth)
+  temp_dir:     /path/to/pipeline/tmp       # ← set this  (intermediate working files)
+  tools_dir:    /path/to/pipeline/tools     # ← set this  (compiled Valhalla, GDAL, Tippecanoe)
+  result_dir:   /path/to/pipeline/result    # ← set this  (final tarballs and manifests)
+  
+# Output — where publish copies the finished geodata artifacts.
+output:
+  geodata_dir: /path/to/geodata  # ← set this
 
-# Download locations for public data
+# Download locations for public data — no changes needed unless mirroring locally.
 download_urls:
   osm: "https://download.geofabrik.de/"
   srtm: "s3://elevation-tiles-prod/skadi/"
   natural-earth: "https://naturalearth.s3.amazonaws.com/"
   osm-land-polygons: "https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip"
 
-output:
-  geodata_dir: /path/to/geodata
 
 # Valhalla setup details
 valhalla:

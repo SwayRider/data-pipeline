@@ -31,12 +31,12 @@ class ValhallaDataPipeline(BasePipeline):
             for region in self.config.regions()
         ]
         if not self._check_prerequisites(required_files):
-            print("Prerequisites missing: OSM PBF files not found — run build-osm first")
+            print("Prerequisites missing: OSM PBF files not found — run prepare-source-data first")
             return False
 
         srtm_dir = os.path.join(self.config.download_dir(), "srtm")
         if not os.path.isdir(srtm_dir) or not os.listdir(srtm_dir):
-            print("Prerequisites missing: SRTM data not found — run build-osm first")
+            print("Prerequisites missing: SRTM data not found — run prepare-source-data first")
             return False
 
         if not self._create_valhalla_data():

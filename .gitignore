@@ -1,0 +1,4 @@
+gis/export/
+gis/data/
+**/.DS_Store
+config/config.yml

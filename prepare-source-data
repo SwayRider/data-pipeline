@@ -6,7 +6,7 @@ from pipeline.osm_pipeline import OsmPipeline
 
 
 def read_args() -> object:
-    parser = argparse.ArgumentParser(description="SwayRider OSM data builder")
+    parser = argparse.ArgumentParser(description="SwayRider source data pipeline")
     parser.add_argument(
             "--config",
             default="config/config.yml",
@@ -33,14 +33,14 @@ def main():
     pl = OsmPipeline(args)
 
     if not pl.initialize():
-        print("Failed to initialize OSM pipeline")
+        print("Failed to initialize source data pipeline")
         return
 
     if not pl.run():
-        print("Failed to run OSM pipeline")
+        print("Failed to run source data pipeline")
         return
 
-    print("OSM pipeline completed successfully")
+    print("Source data pipeline completed successfully")
 
 
 if __name__ == "__main__":
