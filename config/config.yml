@@ -166,10 +166,6 @@ regions:
           - ru/mow/statewide.csv
           - ru/vvg/statewide.csv
       overlap:
-        extract:
-          - overlap_baltics-russia_central-europe.poly
-          - overlap_baltics-russia_scandinavia.poly
-          - overlap_baltics-russia_south-eastern-europe.poly
         osm:
           - europe/bulgaria
           - europe/denmark
@@ -309,12 +305,6 @@ regions:
           - pl/zachodniopomorskie.csv
           - sk/countrywide.csv
       overlap:
-        extract:
-          - overlap_baltics-russia_central-europe.poly
-          - overlap_central-europe_scandinavia.poly
-          - overlap_central-europe_south-eastern-europe.poly
-          - overlap_central-europe_south-europe.poly
-          - overlap_central-europe_west-europe.poly
         osm:
           - europe/austria
           - europe/belarus
@@ -444,10 +434,6 @@ regions:
           - pt/countrywide.csv
           - es/countrywide.csv
       overlap:
-        extract:
-          - overlap_iberian-peninsula_south-europe.poly
-          - overlap_iberian-peninsula_uk-iceland.poly
-          - overlap_iberian-peninsula_west-europe.poly
         osm:
           - europe/france
           - europe/ireland-and-northern-ireland
@@ -509,11 +495,6 @@ regions:
           - se/municipality_of_kristinehamn.csv
           - se/municipality_of_Österåker.csv
       overlap:
-        extract:
-          - overlap_baltics-russia_scandinavia.poly
-          - overlap_central-europe_scandinavia.poly
-          - overlap_scandinavia_uk-iceland.poly
-          - overlap_scandinavia_west-europe.poly
         osm:
           - europe/estonia
           - europe/faroe-islands
@@ -621,10 +602,6 @@ regions:
           - xk/countrywide.csv
           - rs/countrywide.csv
       overlap:
-        extract:
-          - overlap_baltics-russia_south-eastern-europe.poly
-          - overlap_central-europe_south-eastern-europe.poly
-          - overlap_south-eastern-europe_south-europe.poly
         osm:
           - europe/bosnia-herzegovina
           - europe/croatia
@@ -696,11 +673,6 @@ regions:
           - si/countrywide.csv
           - ch/countrywide.csv
       overlap:
-        extract:
-          - overlap_central-europe_south-europe.poly
-          - overlap_iberian-peninsula_south-europe.poly
-          - overlap_south-eastern-europe_south-europe.poly
-          - overlap_south-europe_west-europe.poly
         osm:
           - europe/albania
           - europe/czech-republic
@@ -796,10 +768,6 @@ regions:
           - fo/countrywide.csv
           - is/countrywide.csv
       overlap:
-        extract:
-          - overlap_iberian-peninsula_uk-iceland.poly
-          - overlap_scandinavia_uk-iceland.poly
-          - overlap_uk-iceland_west-europe.poly
         osm:
           - europe/belgium
           - europe/denmark
@@ -892,12 +860,6 @@ regions:
           - lu/countrywide.csv
           - nl/countrywide.csv
       overlap:
-        extract:
-          - overlap_central-europe_west-europe.poly
-          - overlap_iberian-peninsula_west-europe.poly
-          - overlap_scandinavia_west-europe.poly
-          - overlap_south-europe_west-europe.poly
-          - overlap_uk-iceland_west-europe.poly
         osm:
           - europe/andorra
           - europe/austria
