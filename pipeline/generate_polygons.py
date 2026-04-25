@@ -27,8 +27,11 @@ def load_ne_countries(ne_dir: str) -> dict | None:
     result = {}
     for _, row in gdf.iterrows():
         iso = str(row.get("ISO_A2", "") or "").strip().lower()
+        if not iso or iso == "-99":
+            iso = str(row.get("ISO_A2_EH", "") or "").strip().lower()
         if iso and iso != "-99":
-            result[iso] = row.geometry
+            existing = result.get(iso)
+            result[iso] = unary_union([existing, row.geometry]) if existing is not None else row.geometry
     return result
 
 
