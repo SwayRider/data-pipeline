@@ -47,6 +47,11 @@ class ValhallaDataPipeline(BasePipeline):
                 "valhalla.tar.bz2"):
             return False
 
+        print("Finishing up")
+        self.manifest.mark_closed()
+        self.manifest.save()
+        print("Done")
+
         return True
 
     def _create_valhalla_data(self) -> bool:
