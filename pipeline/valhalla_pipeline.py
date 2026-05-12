@@ -1,6 +1,6 @@
 from .base_pipeline import BasePipeline
 from .valhalla_funcs import cleanup_valhalla_data, create_valhalla_config
-from .valhalla_funcs import build_valhalla_tiles
+from .valhalla_funcs import build_valhalla_tiles, export_valhalla_edges
 import os
 import shutil
 
@@ -31,12 +31,12 @@ class ValhallaDataPipeline(BasePipeline):
             for region in self.config.regions()
         ]
         if not self._check_prerequisites(required_files):
-            print("Prerequisites missing: OSM PBF files not found — run build-osm first")
+            print("Prerequisites missing: OSM PBF files not found — run prepare-source-data first")
             return False
 
         srtm_dir = os.path.join(self.config.download_dir(), "srtm")
         if not os.path.isdir(srtm_dir) or not os.listdir(srtm_dir):
-            print("Prerequisites missing: SRTM data not found — run build-osm first")
+            print("Prerequisites missing: SRTM data not found — run prepare-source-data first")
             return False
 
         if not self._create_valhalla_data():
@@ -46,6 +46,11 @@ class ValhallaDataPipeline(BasePipeline):
                 os.path.join(self.config.result_dir(), "valhalla"),
                 "valhalla.tar.bz2"):
             return False
+
+        print("Finishing up")
+        self.manifest.mark_closed()
+        self.manifest.save()
+        print("Done")
 
         return True
 
@@ -66,7 +71,16 @@ class ValhallaDataPipeline(BasePipeline):
             print(f"  - {region.name}")
 
             if self.manifest.valhalla_data_exists(region.name):
-                print("    Skipping, already exists")
+                print("    Skipping tiles, already exists")
+                print("    Exporting polylines (for pelias)")
+                res = export_valhalla_edges(
+                        region.name,
+                        tools_path,
+                        build_path,
+                        srtm_path,
+                        self.config.result_dir())
+                if not res:
+                    return False
                 continue
 
             print("    Cleaning old data")
@@ -105,5 +119,14 @@ class ValhallaDataPipeline(BasePipeline):
                     "tz_world.sqlite",
                     "tiles.tar")
             self.manifest.save()
+
+            print("    Exporting polylines (for pelias)")
+            res = export_valhalla_edges(
+                    region.name,
+                    tools_path,
+                    build_path,
+                    self.config.result_dir())
+            if not res:
+                return False
 
         return True

@@ -2,6 +2,7 @@ from .base_pipeline import BasePipeline
 from concurrent.futures import ThreadPoolExecutor
 from .download import download_file, s3_download_and_unpack_gz
 from .osm_funcs import extract_polygons, merge_osm_files, merge_osm_region
+from .generate_polygons import generate_polygons
 import os
 import shutil
 
@@ -70,8 +71,16 @@ class OsmPipeline(BasePipeline):
         res = self._download_natural_earth_data()
         if not res:
             return False
+        res = self._generate_polygons()
+        if not res:
+            return False
 
         return True
+
+    def _generate_polygons(self) -> bool:
+        print("- Generating region polygons")
+        ne_dir = os.path.join(self.config.download_dir(), "natural-earth")
+        return generate_polygons(self.config.dct, ne_dir)
 
     def _download_osm_data(self) -> bool:
         regions = self.config.regions()

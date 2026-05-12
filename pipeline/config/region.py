@@ -138,7 +138,7 @@ class Region:
     def _parse(self, config: dict):
         self.core_countries = config["core"]["osm"]
         self.overlap_countries = config["overlap"]["osm"]
-        self.overlap_polygons = config["overlap"]["extract"]
+        self.overlap_polygons = [f"overlap_{self.name}.poly"]
         self.core_wof = config["core"]["wof"]
         self.overlap_wof = config["overlap"]["wof"]
         self.core_openaddresses = config["core"]["openaddresses"]

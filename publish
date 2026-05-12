@@ -11,10 +11,6 @@ def read_args() -> object:
             "--config",
             default="config/config.yml",
             help="Path to the config file")
-    parser.add_argument(
-            "--manifest",
-            default="manifest-data.yml",
-            help="Manifest filename to publish (default: manifest-data.yml)")
 
     args = parser.parse_args()
     return args

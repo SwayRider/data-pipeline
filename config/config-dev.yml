@@ -1,28 +1,29 @@
 # Parallelisation
 max_workers: 6
 #
-# source data paths
+# Source data paths — config points into the repo; gis_export must be set to a
+# writable directory where generated polygon files (.poly) will be written.
 source_paths:
-  config: ./config
-  border_polygons: ./gis/export/borders
-  overlap_polygons: ./gis/export/overlap
+  config: ./config                          # repo-relative, no change needed
+  gis_export: /path/to/pipeline/gis/export  # ← set this
 
-# build paths — configure these for your server before running the pipeline
+# Build paths — all four must be set to writable directories on your server.
 build_paths:
-  download_dir: /path/to/pipeline/download
-  temp_dir: /path/to/pipeline/tmp
-  tools_dir: /path/to/pipeline/tools
-  result_dir: /path/to/pipeline/result
+  download_dir: /path/to/pipeline/download  # ← set this  (OSM PBFs, SRTM tiles, Natural Earth)
+  temp_dir:     /path/to/pipeline/tmp       # ← set this  (intermediate working files)
+  tools_dir:    /path/to/pipeline/tools     # ← set this  (compiled Valhalla, GDAL, Tippecanoe)
+  result_dir:   /path/to/pipeline/result    # ← set this  (final tarballs and manifests)
 
-# Download locations for public data
+# Output — where publish copies the finished geodata artifacts.
+output:
+  geodata_dir: /path/to/geodata  # ← set this
+
+# Download locations for public data — no changes needed unless mirroring locally.
 download_urls:
   osm: "https://download.geofabrik.de/"
   srtm: "s3://elevation-tiles-prod/skadi/"
   natural-earth: "https://naturalearth.s3.amazonaws.com/"
   osm-land-polygons: "https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip"
-
-output:
-  geodata_dir: /path/to/geodata
 
 # Valhalla setup details
 valhalla:
@@ -36,17 +37,9 @@ valhalla:
           - -DENABLE_SERVICES=OFF
           - -DENABLE_BENCHMARKS=OFF
           - -DENABLE_TESTS=OFF
-          - -DCMAKE_CXX_FLAGS="-Wno-error=format-truncation"
+          - -DCMAKE_CXX_FLAGS=-Wno-error=format-truncation -Wno-error=deprecated-declarations
           - -DCMAKE_POLICY_DEFAULT_CMP0144=OLD
-          - -DSQLite3_INCLUDE_DIR=/opt/homebrew/opt/sqlite3/include
-          - -DSQLite3_LIBRARY=/opt/homebrew/opt/sqlite3/lib/libsqlite3.dylib
           - -DSQLITE_ENABLE_LOAD_EXTENSION=ON
-          - -DSQLITE_ROOT_DIR=/opt/homebrew/opt/sqlite3
-          - -DProtobuf_ROOT=/opt/homebrew/Cellar/protobuf/33.4_1
-          - -DProtobuf_INCLUDE_DIR=/opt/homebrew/Cellar/protobuf/33.4_1/include
-          - -DProtobuf_LIBRARY=/opt/homebrew/Cellar/protobuf/33.4_1/lib/libprotobuf.dylib
-          - -DBOOST_ROOT=/opt/homebrew/opt/boost
-          - -DABSL_ROOT=/opt/homebrew/opt/abseil
         make-build: true
         make-opts:
           - all
@@ -68,9 +61,9 @@ pelias:
         npm-install: true
     - polylines:latest:
         npm-install: true
-    - csv:latest:
+    - csv-importer:latest:
         npm-install: true
-    - transit:v1.0.0:
+    - transit:latest:
         npm-install: true
   config: pelias-load.json
   config_prod: pelias-prod.json
@@ -101,7 +94,6 @@ osgeo:
         cmake-build: true
         cmake-compile: true
         cmake-opts:
-          - -DCMAKE_PREFIX_PATH=/opt/homebrew
           - -DGDAL_USE_AVIF=OFF
           - -DGDAL_ENABLE_DRIVER_AVIF=OFF
 
@@ -166,10 +158,6 @@ regions:
           - ru/mow/statewide.csv
           - ru/vvg/statewide.csv
       overlap:
-        extract:
-          - overlap_baltics-russia_central-europe.poly
-          - overlap_baltics-russia_scandinavia.poly
-          - overlap_baltics-russia_south-eastern-europe.poly
         osm:
           - europe/bulgaria
           - europe/denmark
@@ -309,12 +297,6 @@ regions:
           - pl/zachodniopomorskie.csv
           - sk/countrywide.csv
       overlap:
-        extract:
-          - overlap_baltics-russia_central-europe.poly
-          - overlap_central-europe_scandinavia.poly
-          - overlap_central-europe_south-eastern-europe.poly
-          - overlap_central-europe_south-europe.poly
-          - overlap_central-europe_west-europe.poly
         osm:
           - europe/austria
           - europe/belarus
@@ -444,10 +426,6 @@ regions:
           - pt/countrywide.csv
           - es/countrywide.csv
       overlap:
-        extract:
-          - overlap_iberian-peninsula_south-europe.poly
-          - overlap_iberian-peninsula_uk-iceland.poly
-          - overlap_iberian-peninsula_west-europe.poly
         osm:
           - europe/france
           - europe/ireland-and-northern-ireland
@@ -474,8 +452,9 @@ regions:
         - united-kingdom: [ 49, 61, -9, 2 ]
 
   - scandinavia:
-      gtfs_feeds:
-        - https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs.zip
+      # TODO: re-enable gtfs_feeds when reliable data sources are confirmed
+      # gtfs_feeds:
+      #   - https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs.zip
       core:
         osm:
           - europe/denmark
@@ -509,11 +488,6 @@ regions:
           - se/municipality_of_kristinehamn.csv
           - se/municipality_of_Österåker.csv
       overlap:
-        extract:
-          - overlap_baltics-russia_scandinavia.poly
-          - overlap_central-europe_scandinavia.poly
-          - overlap_scandinavia_uk-iceland.poly
-          - overlap_scandinavia_west-europe.poly
         osm:
           - europe/estonia
           - europe/faroe-islands
@@ -621,10 +595,6 @@ regions:
           - xk/countrywide.csv
           - rs/countrywide.csv
       overlap:
-        extract:
-          - overlap_baltics-russia_south-eastern-europe.poly
-          - overlap_central-europe_south-eastern-europe.poly
-          - overlap_south-eastern-europe_south-europe.poly
         osm:
           - europe/bosnia-herzegovina
           - europe/croatia
@@ -696,11 +666,6 @@ regions:
           - si/countrywide.csv
           - ch/countrywide.csv
       overlap:
-        extract:
-          - overlap_central-europe_south-europe.poly
-          - overlap_iberian-peninsula_south-europe.poly
-          - overlap_south-eastern-europe_south-europe.poly
-          - overlap_south-europe_west-europe.poly
         osm:
           - europe/albania
           - europe/czech-republic
@@ -796,10 +761,6 @@ regions:
           - fo/countrywide.csv
           - is/countrywide.csv
       overlap:
-        extract:
-          - overlap_iberian-peninsula_uk-iceland.poly
-          - overlap_scandinavia_uk-iceland.poly
-          - overlap_uk-iceland_west-europe.poly
         osm:
           - europe/belgium
           - europe/denmark
@@ -841,10 +802,11 @@ regions:
         - united-kingdom: [ 49, 61, -9, 2 ]
 
   - west-europe:
-      gtfs_feeds:
-        - https://gtfs.irail.be/nmbs/feed/gtfs.zip
-        - https://opendata.delijn.be/gtfs/google_transit.zip
-        - https://gtfs.ovapi.nl/nl/gtfs-nl.zip
+      # TODO: re-enable gtfs_feeds when reliable data sources are confirmed
+      # gtfs_feeds:
+      #   - https://gtfs.irail.be/nmbs/feed/gtfs.zip
+      #   - https://opendata.delijn.be/gtfs/google_transit.zip
+      #   - https://gtfs.ovapi.nl/nl/gtfs-nl.zip
       core:
         osm:
           - europe/belgium
@@ -892,12 +854,6 @@ regions:
           - lu/countrywide.csv
           - nl/countrywide.csv
       overlap:
-        extract:
-          - overlap_central-europe_west-europe.poly
-          - overlap_iberian-peninsula_west-europe.poly
-          - overlap_scandinavia_west-europe.poly
-          - overlap_south-europe_west-europe.poly
-          - overlap_uk-iceland_west-europe.poly
         osm:
           - europe/andorra
           - europe/austria
@@ -991,53 +947,13 @@ regions:
 
 # Detection of border crossings
 border-regions:
-  - name: baltics-russia_central-europe
-    region-poly: br_baltics-russia_central-europe.poly
-    regions:
-      - baltics-russia
-      - central-europe
-  - name: baltics-russia_scandinavia
-    region-poly: br_baltics-russia_scandinavia.poly
-    regions:
-      - baltics-russia
-      - scandinavia
-  - name: baltics-russia_south-eastern-europe
-    region-poly: br_baltics-russia_south-eastern-europe.poly
-    regions:
-      - baltics-russia
-      - south-eastern-europe
-  - name: central-europe_south-eastern-europe
-    region-poly: br_central-europe_south-eastern-europe.poly
-    regions:
-      - central-europe
-      - south-eastern-europe
-  - name: central-europe_south-europe
-    region-poly: br_central-europe_south-europe.poly
-    regions:
-      - central-europe
-      - south-europe
-  - name: central-europe_west-europe
-    region-poly: br_central-europe_west-europe.poly
-    regions:
-      - central-europe
-      - west-europe
-  - name: iberian-peninsula_west-europe
-    region-poly: br_iberian-peninsula_west-europe.poly
-    regions:
-      - iberian-peninsula
-      - west-europe
-  - name: scandinavia_west-europe
-    region-poly: br_scandinavia_west-europe.poly
-    regions:
-      - scandinavia
-      - west-europe
-  - name: south-eastern-europe_south-europe
-    region-poly: br_south-eastern-europe_south-europe.poly
-    regions:
-      - south-eastern-europe
-      - south-europe
-  - name: south-europe_west-europe
-    region-poly: br_south-europe_west-europe.poly
-    regions:
-      - south-europe
-      - west-europe
+  - [ baltics-russia, central-europe ]
+  - [ baltics-russia, scandinavia ]
+  - [ baltics-russia, south-eastern-europe ]
+  - [ central-europe, south-eastern-europe ]
+  - [ central-europe, south-europe ]
+  - [ central-europe, west-europe ]
+  - [ iberian-peninsula, west-europe ]
+  - [ scandinavia, west-europe ]
+  - [ south-eastern-europe, south-europe ]
+  - [ south-europe, west-europe ]

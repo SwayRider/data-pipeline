@@ -32,7 +32,7 @@ class BorderDataPipeline(BasePipeline):
             print("Pipeline already completed")
             return True
 
-        # Check that build-osm has been run for all regions
+        # Check that prepare-source-data has been run for all regions
         required_files = []
         for region in self.config.regions():
             required_files.append(
@@ -41,7 +41,7 @@ class BorderDataPipeline(BasePipeline):
                 os.path.join(self.config.result_dir(), "osm", region.name + "-core.osm.pbf"))
 
         if not self._check_prerequisites(required_files):
-            print("Prerequisites missing — run build-osm first")
+            print("Prerequisites missing — run prepare-source-data first")
             return False
 
         if not self._extract_region_borders():

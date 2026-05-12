@@ -34,7 +34,7 @@ in separate manifest files so they can run and be re-run independently.
 
 | Pipeline | Script | Manifest | Output |
 |---|---|---|---|
-| OSM data | `./build-osm` | `manifest-osm.yml` | `osm.tar.bz2` |
+| Source data (OSM + polygons) | `./prepare-source-data` | `manifest-osm.yml` | `osm.tar.bz2` |
 | Border data | `./build-border-data` | `manifest-border.yml` | `border.tar.bz2` |
 | Valhalla routing data | `./build-valhalla-data` | `manifest-valhalla.yml` | `valhalla.tar.bz2` |
 | Pelias geocoding data | `./build-pelias-data` | `manifest-pelias.yml` | `pelias.tar.bz2` |
@@ -43,28 +43,31 @@ in separate manifest files so they can run and be re-run independently.
 ### Pipeline dependencies
 
 ```
-build-osm  ──┬──▶  build-border-data
-             ├──▶  build-valhalla-data
-             └──▶  build-pelias-data
+prepare-source-data  ──┬──▶  build-border-data
+                       └──▶  build-valhalla-data  ──▶  build-pelias-data
 
 build-tiles  (independent)
 ```
 
-`build-border-data`, `build-valhalla-data`, and `build-pelias-data` each verify that the
-required OSM output files from `build-osm` are present before starting. Run `build-osm` first.
+`build-border-data` and `build-valhalla-data` verify that OSM output from `prepare-source-data`
+is present before starting. `build-pelias-data` additionally requires `build-valhalla-data` to
+have completed first: it reads the per-region `polylines.0sv.gz` files exported from the Valhalla
+graph to import street-name data into Pelias.
 
 ### Recommended execution order
 
 ```bash
 # Step 1 — always first
-./build-osm --config config/config.yml --tag 2026-03-09
+./prepare-source-data --config config/config.yml --tag 2026-03-09
 
-# Step 2 — these three can run in parallel or in any order
+# Step 2 — border and valhalla can run in parallel
 ./build-border-data   --config config/config.yml --tag 2026-03-09
 ./build-valhalla-data --config config/config.yml --tag 2026-03-09
+
+# Step 3 — requires valhalla to be complete
 ./build-pelias-data   --config config/config.yml --tag 2026-03-09
 
-# Step 3 — independent, can run at any time
+# Independent — can run at any time
 ./build-tiles --config config/config.yml --tag 2026-03-09
 ```
 
@@ -115,13 +118,14 @@ Key config sections:
 
 ## Pipelines
 
-### OSM Data Pipeline
+### Source Data Pipeline
 
-Produces per-region OSM `.osm.pbf` extracts with overlap regions for routing continuity.
+Downloads and prepares all source data required by the downstream pipelines.
 
 **Output files:**
 - OSM `.osm.pbf` files per region (with overlap extracts for routing continuity)
 - Core `.osm.pbf` files per region (used by border and Valhalla pipelines)
+- Region polygon files (`gis_export/overlap/`, `gis_export/borders/`)
 - `osm.tar.bz2` archive of all OSM files
 
 **Pipeline steps:**
@@ -129,13 +133,14 @@ Produces per-region OSM `.osm.pbf` extracts with overlap regions for routing con
 1. Download OSM data (per-region PBFs from Geofabrik + tile regions)
 2. Download SRTM elevation tiles
 3. Download Natural Earth data
-4. Create overlap extracts
-5. Build per-region OSM files (merge core + overlap, clip to border)
-6. Package to `osm.tar.bz2`
+4. Generate region polygons (overlap + border `.poly` files from Natural Earth country boundaries)
+5. Create overlap extracts
+6. Build per-region OSM files (merge core + overlap, clip to border)
+7. Package to `osm.tar.bz2`
 
 ### Border Data Pipeline
 
-Requires: OSM output from `build-osm`. Produces region borders and border-crossing metadata.
+Requires: OSM output from `prepare-source-data`. Produces region borders and border-crossing metadata.
 
 **Output files:**
 - Region border GeoJSON files
@@ -144,7 +149,7 @@ Requires: OSM output from `build-osm`. Produces region borders and border-crossi
 
 **Pipeline steps:**
 
-1. Verify prerequisites (OSM files from build-osm)
+1. Verify prerequisites (OSM files from prepare-source-data)
 2. Extract region borders
 3. Create region border areas
 4. Detect border crossings
@@ -152,7 +157,7 @@ Requires: OSM output from `build-osm`. Produces region borders and border-crossi
 
 ### Valhalla Routing Data Pipeline
 
-Requires: OSM output from `build-osm`. Produces Valhalla routing graph tiles.
+Requires: OSM output from `prepare-source-data`. Produces Valhalla routing graph tiles.
 
 **Output files:**
 - Valhalla routing graph tiles per region
@@ -161,24 +166,25 @@ Requires: OSM output from `build-osm`. Produces Valhalla routing graph tiles.
 **Pipeline steps:**
 
 1. Compile Valhalla from source (latest release, cached after first run)
-2. Verify prerequisites (OSM files from build-osm, SRTM data)
+2. Verify prerequisites (OSM files from prepare-source-data, SRTM data)
 3. Build Valhalla graph tiles
 4. Package to `valhalla.tar.bz2`
 
 ### Pelias Geocoding Data Pipeline
 
-Requires: OSM output from `build-osm`. Produces Pelias geocoding data.
+Requires: OSM output from `prepare-source-data` **and** Valhalla output from `build-valhalla-data`
+(specifically the per-region `polylines.0sv.gz` files used for street-name import).
 
 **Output files:**
-- Pelias geocoding data (schema, WhoIsOnFirst, OpenAddresses, OSM, Geonames)
+- Pelias geocoding data (schema, WhoIsOnFirst, OpenAddresses, OSM, Geonames, polylines)
 - `pelias.tar.bz2` archive
 
 **Pipeline steps:**
 
 1. Install Pelias npm tools (latest releases, cached after first run)
-2. Verify prerequisites (OSM files from build-osm)
+2. Verify prerequisites (OSM files from prepare-source-data)
 3. Download Pelias placeholder data
-4. Build Pelias data (schema → import WOF → import addresses → import OSM)
+4. Build Pelias data (schema → import WOF → import addresses → import OSM → import polylines)
 5. Package to `pelias.tar.bz2`
 
 ### Tiles Pipeline
@@ -209,12 +215,13 @@ Generates vector tile MBTiles from large regional OSM extracts and Natural Earth
 
 ## Scripts
 
-### `./build-osm`
+### `./prepare-source-data`
 
-Run the OSM data pipeline.
+Run the source data pipeline. Downloads OSM, SRTM and Natural Earth data, generates
+region polygon files, and produces per-region OSM extracts.
 
 ```
-./build-osm [--config CONFIG] [--clean] [--clean-all] [--tag TAG]
+./prepare-source-data [--config CONFIG] [--clean] [--clean-all] [--tag TAG]
 ```
 
 | Flag | Description |
@@ -297,34 +304,38 @@ Run the tiles pipeline.
 
 ### `./publish`
 
-Publish already-built artifacts to the geodata output directory.
+Move all completed pipeline archives to the geodata output directory.
 
 ```
-./publish [--config CONFIG] [--manifest FILENAME]
+./publish [--config CONFIG]
 ```
 
 | Flag | Description |
 |---|---|
 | `--config` | Path to config file (default: `config/config.yml`) |
-| `--manifest` | Manifest file to publish (default: `manifest-data.yml`) |
+
+Each pipeline that has completed (its manifest is closed) has its archive(s) moved from
+`result_dir/` to `{geodata_dir}/{tag}/`. Pipelines whose manifest is missing or not yet
+completed are skipped. Archives moved per pipeline:
+
+| Pipeline | Archive(s) |
+|---|---|
+| `prepare-source-data` | `osm.tar.bz2` |
+| `build-border-data` | `border.tar.bz2` |
+| `build-valhalla-data` | `valhalla.tar.bz2` |
+| `build-pelias-data` | `pelias-es-snapshot.tar.bz2`, `pelias-data.tar.bz2` |
+| `build-tiles` | `tiles.tar` |
 
 ### Publish examples
 
 ```bash
-# Build and publish OSM data
-./build-osm --config config/config.yml --tag 2026-03-09
-./publish   --config config/config.yml --manifest manifest-osm.yml
-
-# Build and publish border data
-./build-border-data --config config/config.yml --tag 2026-03-09
-./publish           --config config/config.yml --manifest manifest-border.yml
-
-# Build and publish tiles
-./build-tiles --config config/config.yml --tag 2026-03-09
-./publish     --config config/config.yml --manifest manifest-tiles.yml
-
-# Publish only tiles (without rebuilding)
-./publish --config config/config.yml --manifest manifest-tiles.yml
+# Run all pipelines, then publish everything at once
+./prepare-source-data --config config/config.yml --tag 2026-03-09
+./build-border-data   --config config/config.yml --tag 2026-03-09
+./build-valhalla-data --config config/config.yml --tag 2026-03-09
+./build-pelias-data   --config config/config.yml --tag 2026-03-09
+./build-tiles         --config config/config.yml --tag 2026-03-09
+./publish             --config config/config.yml
 ```
 
 ---
@@ -621,11 +632,13 @@ result_dir/
 │   └── {region}/
 │       ├── tiles.tar
 │       ├── admin.sqlite
-│       └── tz_world.sqlite
+│       ├── tz_world.sqlite
+│       └── polylines.0sv.gz       # valhalla_export_edges output; consumed by build-pelias-data
 ├── pelias/
 │   ├── placeholder/
 │   ├── config/{region}/pelias.json
 │   └── wof/{region}/
+├── es-snapshots/                  # Elasticsearch snapshot repository
 ├── tiles/
 │   ├── L0.mbtiles
 │   ├── L1/{TILE}.mbtiles
@@ -633,7 +646,8 @@ result_dir/
 ├── osm.tar.bz2
 ├── border.tar.bz2
 ├── valhalla.tar.bz2
-├── pelias.tar.bz2
+├── pelias-es-snapshot.tar.bz2
+├── pelias-data.tar.bz2
 └── tiles.tar
 ```
 
@@ -641,22 +655,13 @@ Output paths (after `./publish`):
 
 ```
 geodata/
-├── data/{tag}/
-│   ├── osm/{region}.osm.pbf
-│   ├── borders/{region}-core.geojson
-│   ├── borders/{region}-extended.geojson
-│   ├── border-crossings/{border-pair}.csv
-│   ├── valhalla/{region}/tiles.tar
-│   ├── pelias/placeholder/{file}
-│   ├── pelias/config/{region}/pelias.json
-│   ├── pelias/wof/{region}/{file}
-│   ├── manifest-osm.yml
-│   ├── manifest-border.yml
-│   ├── manifest-valhalla.yml
-│   └── manifest-pelias.yml
-└── tiles/{tag}/
-    ├── tiles.tar
-    └── manifest-tiles.yml
+└── {tag}/
+    ├── osm.tar.bz2
+    ├── border.tar.bz2
+    ├── valhalla.tar.bz2
+    ├── pelias-es-snapshot.tar.bz2
+    ├── pelias-data.tar.bz2
+    └── tiles.tar
 ```
 
 ---

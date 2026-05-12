@@ -18,11 +18,14 @@ class Config:
     def config_dir(self) -> Path:
         return Path(self.dct["source_paths"]["config"]).resolve()
 
+    def gis_export_dir(self) -> Path:
+        return Path(self.dct["source_paths"]["gis_export"]).resolve()
+
     def border_polygons_dir(self) -> Path:
-        return Path(self.dct["source_paths"]["border_polygons"]).resolve()
+        return self.gis_export_dir() / "borders"
 
     def overlap_polygons_dir(self) -> Path:
-        return Path(self.dct["source_paths"]["overlap_polygons"]).resolve()
+        return self.gis_export_dir() / "overlap"
 
     def download_dir(self) -> Path:
         return Path(self.dct["build_paths"]["download_dir"]).resolve()

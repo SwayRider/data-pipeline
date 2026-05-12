@@ -119,3 +119,66 @@ def build_valhalla_tiles(
     shutil.copyfile(tiles_tar_file, output_tiles_tar_file)
 
     return True, output_path, "tiles.tar", "admin.sqlite", "tz_world.sqlite"
+
+
+def export_valhalla_edges(
+        region_name: str,
+        tool_path: str,
+        build_path: str,
+        srtm_path: str,
+        result_path: str) -> bool:
+    region_result_path = os.path.join(result_path, "valhalla", region_name)
+    output_file = os.path.join(region_result_path, "polylines.0sv.gz")
+
+    if os.path.exists(output_file):
+        print(f"File {output_file} already exists. Skipping.")
+        return True
+
+    export_tool = os.path.join(tool_path, "valhalla_export_edges")
+    config_tool = os.path.join(tool_path, "valhalla_build_config")
+    config_path = os.path.join(build_path, "valhalla-export.json")
+
+    # Build a full config pointing at the already-copied result tiles so this
+    # works both right after a build and in the "tiles exist, skip" path.
+    config_cmd = (
+        f"\"{config_tool}\""
+        f" --mjolnir-tile-dir \"{os.path.join(build_path, 'valhalla', 'tiles')}\""
+        f" --mjolnir-tile-extract \"{os.path.join(region_result_path, 'tiles.tar')}\""
+        f" --mjolnir-admin \"{os.path.join(region_result_path, 'admin.sqlite')}\""
+        f" --mjolnir-timezone \"{os.path.join(region_result_path, 'tz_world.sqlite')}\""
+        f" --additional-data-elevation \"{srtm_path}\""
+        f" > \"{config_path}\""
+    )
+    try:
+        subprocess.run(config_cmd, shell=True, check=True)
+    except subprocess.CalledProcessError as ex:
+        print(ex)
+        return False
+
+    # Write to a raw temp file first — no pipe, so check=True actually catches
+    # a non-zero exit from valhalla_export_edges instead of being swallowed by gzip.
+    raw_file = output_file + ".raw"
+    try:
+        with open(raw_file, "w") as f:
+            subprocess.run(
+                f"\"{export_tool}\" --config \"{config_path}\"",
+                shell=True, check=True, stdout=f)
+    except (subprocess.CalledProcessError, OSError) as ex:
+        print(ex)
+        if os.path.exists(raw_file):
+            os.remove(raw_file)
+        return False
+
+    try:
+        with open(output_file, "wb") as out_f:
+            subprocess.run(["gzip", "-c", raw_file], stdout=out_f, check=True)
+    except subprocess.CalledProcessError as ex:
+        print(ex)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+        return False
+    finally:
+        if os.path.exists(raw_file):
+            os.remove(raw_file)
+
+    return True

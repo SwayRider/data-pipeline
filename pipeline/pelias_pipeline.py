@@ -28,7 +28,11 @@ class PeliasDataPipeline(BasePipeline):
             os.path.join(result_dir, "es-snapshots"),
         ]:
             if os.path.exists(path):
-                shutil.rmtree(path)
+                try:
+                    shutil.rmtree(path)
+                except PermissionError:
+                    print(f"  Removing {path} requires elevated permissions (sudo)")
+                    subprocess.run(["sudo", "rm", "-rf", path], check=True)
         for filename in ["manifest-pelias.yml",
                          "pelias-es-snapshot.tar.bz2",
                          "pelias-data.tar.bz2"]:
@@ -193,7 +197,7 @@ class PeliasDataPipeline(BasePipeline):
                     for region in self.config.regions()
                 ]
                 if not self._check_prerequisites(required_files):
-                    print("Prerequisites missing — run build-osm first")
+                    print("Prerequisites missing — run prepare-source-data first")
                     return False
 
                 if not self._create_pelias_data():
@@ -266,7 +270,7 @@ class PeliasDataPipeline(BasePipeline):
         polylines_tools_path = self._symlink_path(
                 self.tools["pelias"]["polylines"], "pelias-tools-polylines")
         csv_tools_path = self._symlink_path(
-                self.tools["pelias"]["csv"], "pelias-tools-csv")
+                self.tools["pelias"]["csv-importer"], "pelias-tools-csv")
         transit_tools_path = self._symlink_path(
                 self.tools["pelias"]["transit"], "pelias-tools-transit")
 
@@ -313,6 +317,8 @@ class PeliasDataPipeline(BasePipeline):
                     data_path, "gtfs", region.name)
 
             print("    Generating pelias.json config file")
+            polylines_data_path = os.path.join(
+                    self.config.result_dir(), "valhalla", region.name)
             res = create_pelias_config(
                     region.name,
                     self.manifest.tag,
@@ -323,7 +329,8 @@ class PeliasDataPipeline(BasePipeline):
                     region.openaddresses_files(),
                     region.wof_country_codes(),
                     overture_data_path,
-                    gtfs_data_path)
+                    gtfs_data_path,
+                    polylines_data_path)
             if not res:
                 return False
 
@@ -384,19 +391,23 @@ class PeliasDataPipeline(BasePipeline):
                 if not res:
                     return False
 
-            feeds = region.gtfs_feeds()
-            if feeds:
-                print("    Downloading GTFS feeds")
-                os.makedirs(gtfs_data_path, exist_ok=True)
-                res = download_gtfs_feeds(feeds, gtfs_data_path)
-                if not res:
-                    return False
-                print("    Importing GTFS transit stops")
-                res = import_pelias_transit(transit_tools_path, build_path)
-                if not res:
-                    return False
-            else:
-                print("    Skipping GTFS (no feeds configured)")
+            # TODO: re-enable GTFS transit import when reliable feed sources
+            # are confirmed. Feed URLs have been unreliable (DNS failures,
+            # invalid downloads). Feeds are commented out in the config files.
+            # feeds = region.gtfs_feeds()
+            # if feeds:
+            #     print("    Downloading GTFS feeds")
+            #     os.makedirs(gtfs_data_path, exist_ok=True)
+            #     res = download_gtfs_feeds(feeds, gtfs_data_path)
+            #     if not res:
+            #         return False
+            #     print("    Importing GTFS transit stops")
+            #     res = import_pelias_transit(transit_tools_path, build_path)
+            #     if not res:
+            #         return False
+            # else:
+            #     print("    Skipping GTFS (no feeds configured)")
+            print("    Skipping GTFS (transit import disabled)")
 
             print("    Archiving WOF data")
             res, file_path = archive_pelias_wof_data(

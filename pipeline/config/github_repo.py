@@ -3,6 +3,9 @@ import os
 import re
 import subprocess
 
+# Prevent git from prompting for credentials in non-interactive pipelines
+_NO_PROMPT_ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +70,8 @@ class GithubRepo:
         try:
             result = subprocess.run(
                 ["git", "ls-remote", "--symref", repo_url, "HEAD"],
-                capture_output=True, text=True, check=True)
+                capture_output=True, text=True, check=True,
+                env=_NO_PROMPT_ENV)
         except subprocess.CalledProcessError:
             return "main"
 
@@ -94,6 +98,7 @@ class GithubRepo:
                 capture_output=True,
                 text=True,
                 check=True,
+                env=_NO_PROMPT_ENV,
             )
         except subprocess.CalledProcessError as ex:
             fallback = self._default_branch()
@@ -160,7 +165,7 @@ class GithubRepo:
             subprocess.run(
                     ["git", "clone", "--branch", clone_branch, "--single-branch",
                         "--depth", "1", f"{self.base_url}/{self.name}", dest_dir],
-                    check=True)
+                    check=True, env=_NO_PROMPT_ENV)
         except subprocess.CalledProcessError:
             import shutil
             shutil.rmtree(dest_dir, ignore_errors=True)

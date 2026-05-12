@@ -1925,35 +1925,22 @@ def tag_motorway_link_connectivity(geojson_path: str, neighbor_paths=None) -> bo
     SNAP = 1e-6  # ~0.1 m — safe because osmium preserves exact shared coordinates
     cell_size = SNAP * 2
 
-    # Load neighbor features for topology context (not classified)
-    neighbor_features = []
-    if neighbor_paths:
-        for np_path in neighbor_paths:
-            if np_path and os.path.exists(np_path):
-                try:
-                    with open(np_path, 'r') as f:
-                        nd = json.load(f)
-                    neighbor_features.extend(nd.get('features', []))
-                except Exception:
-                    pass
-
-    all_features = features + neighbor_features
-
     # Build endpoint list and direction-aware feat_endpoints.
     # feat_endpoints[fidx] = (traffic_start, traffic_end) accounting for oneway=-1/reverse.
     # motorway_link is treated as oneway in geometry direction unless oneway tag reverses it.
     endpoints = []  # list of (x, y, hw_type, feat_idx)
     feat_endpoints = {}  # feat_idx → (traffic_start, traffic_end), motorway_link only
+    motorway_refs = {}  # feat_idx → ref string, motorway features only
 
-    for idx, feat in enumerate(all_features):
+    def _extract_endpoints(feat, idx):
         geom = feat.get('geometry', {})
         props = feat.get('properties', {})
         hw = props.get('highway', '')
         if geom.get('type') != 'LineString':
-            continue
+            return
         coords = geom.get('coordinates', [])
         if len(coords) < 2:
-            continue
+            return
         if hw == 'motorway_link':
             oneway = props.get('oneway', '')
             if oneway in ('-1', 'reverse'):
@@ -1966,8 +1953,29 @@ def tag_motorway_link_connectivity(geojson_path: str, neighbor_paths=None) -> bo
             for coord in (traffic_start, traffic_end):
                 endpoints.append((coord[0], coord[1], hw, idx))
         else:
+            if hw == 'motorway':
+                motorway_refs[idx] = props.get('ref', '')
             for coord in (coords[0], coords[-1]):
                 endpoints.append((coord[0], coord[1], hw, idx))
+
+    # Pass 1: main tile features
+    for idx, feat in enumerate(features):
+        _extract_endpoints(feat, idx)
+
+    # Pass 2: neighbor files — load one at a time, extract, discard
+    next_idx = len(features)
+    if neighbor_paths:
+        for np_path in neighbor_paths:
+            if np_path and os.path.exists(np_path):
+                try:
+                    with open(np_path, 'r') as f:
+                        nd = json.load(f)
+                    for feat in nd.get('features', []):
+                        _extract_endpoints(feat, next_idx)
+                        next_idx += 1
+                    del nd
+                except Exception:
+                    pass
 
     # Build grid index for fast spatial lookup
     grid = {}
@@ -2044,14 +2052,6 @@ def tag_motorway_link_connectivity(geojson_path: str, neighbor_paths=None) -> bo
     def pos_key(px, py):
         return (round(px / SNAP), round(py / SNAP))
 
-    # Build lookup for motorway refs by feature index
-    motorway_refs = {}
-    for idx, feat in enumerate(all_features):
-        props = feat.get('properties', {})
-        if props.get('highway') == 'motorway':
-            ref = props.get('ref', '')
-            motorway_refs[idx] = ref
-
     # Collect motorway anchor positions: all endpoints of highway=motorway features
     # Track which motorway ref each anchor belongs to for connector detection
     motorway_anchors = []  # (x, y, motorway_ref)
@@ -2063,6 +2063,7 @@ def tag_motorway_link_connectivity(geojson_path: str, neighbor_paths=None) -> bo
                 seen_anchor_keys.add(pk)
                 ref = motorway_refs.get(fidx, '')
                 motorway_anchors.append((ex, ey, ref))
+    del endpoints
 
     # Sweep A: forward from motorway anchors → from_motorway dict (→ off_ramp / connector)
     # Maps link_idx -> motorway_ref that reached it
