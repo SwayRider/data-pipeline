@@ -1,6 +1,8 @@
 # GTFS Feed Sources
 
-Reference document for all GTFS feeds per region. Feeds already wired into `config-mac.yml` are marked **[wired]**. Feeds requiring registration, an API key, or manual URL investigation are marked **[needs setup]**.
+Reference document for all GTFS feeds per region. Feeds already wired into `config-dev.yml` are marked **[wired]**. Feeds requiring registration, an API key, or manual URL investigation are marked **[needs setup]**.
+
+> As of 2026-08, all `gtfs_feeds` entries in `config-dev.yml` are commented out pending confirmation that these sources are reliable — see the `# TODO: re-enable gtfs_feeds` markers in that file. The **[wired]** status below reflects the code path being wired, not that the feeds are currently active.
 
 ---
 
@@ -69,5 +71,5 @@ Reference document for all GTFS feeds per region. Feeds already wired into `conf
 ## Adding a New Feed
 
 1. Verify the URL returns a valid GTFS zip (contains `stops.txt`, `stop_times.txt`, `trips.txt`)
-2. Add the URL to the appropriate region's `gtfs_feeds` list in `config-mac.yml`
+2. Add the URL to the appropriate region's `gtfs_feeds` list in `config-dev.yml`
 3. Update this file to mark the source as `[wired]`
