@@ -93,9 +93,9 @@ Config files live in `config/`:
 
 | File | Purpose |
 |---|---|
-| `config.yml` | Production config |
+| `config.yml` | Production config (gitignored — create locally, e.g. as a symlink) |
 | `config-dev.yml` | Local development config |
-| `config-test.yml` | CI / test config |
+| `config-mini.yml` | Minimal config (benelux/france/germany only) for local testing |
 
 Key config sections:
 
@@ -112,7 +112,7 @@ Key config sections:
 | `tippecanoe` / `osgeo` / `valhalla` / `pelias` | Tool build configs |
 | `natural_earth` | Natural Earth file paths relative to the NE download URL |
 
-> **Note:** `config.yml` may be a symlink to a platform-specific config (e.g. `config-mac.yml` for macOS). All pipelines default to `config/config.yml`.
+> **Note:** `config.yml` may be a symlink to a platform- or environment-specific config file. All pipelines default to `config/config.yml`.
 
 ---
 
