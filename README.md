@@ -1,5 +1,7 @@
 > **⚠️ Prototype Code** — This codebase is under active development and will change extensively in the near future. APIs, commands, and data schemas are subject to breaking changes.
 
+> **⚠️ DEPRECATED** — This pipeline is being replaced by [`data-manager`](../data-manager). Do not extend it. Migration steps, deployment strategy and removal plan: [`Docs/MIGRATION-DATA-MANAGER.md`](../Docs/MIGRATION-DATA-MANAGER.md).
+
 # SwayRider Data Pipeline
 
 The data pipeline builds all geodata required by the SwayRider backend: vector tile MBTiles,
