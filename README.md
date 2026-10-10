@@ -1,6 +1,6 @@
 > **⚠️ Prototype Code** — This codebase is under active development and will change extensively in the near future. APIs, commands, and data schemas are subject to breaking changes.
 
-> **⚠️ DEPRECATED** — This pipeline is being replaced by [`data-manager`](../data-manager). Do not extend it. Migration steps, deployment strategy and removal plan: [`Docs/MIGRATION-DATA-MANAGER.md`](../Docs/MIGRATION-DATA-MANAGER.md).
+> **⚠️ DEPRECATED** — This pipeline is replaced by [`data-manager`](../data-manager) (v0.0.1; see its [README](../data-manager/README.md) for prerequisites and how to start). Do not extend it and do not use it for new builds. The legacy MBTiles output it produces is only served until the cutover to the planet PMTiles (migration Phase G). Migration steps, status, deployment strategy and removal plan: [`Docs/MIGRATION-DATA-MANAGER.md`](../Docs/MIGRATION-DATA-MANAGER.md).
 
 # SwayRider Data Pipeline
 
